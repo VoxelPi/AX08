@@ -1,0 +1,59 @@
+{
+    "version": "1.5",
+    "configurations": [
+        {
+            "name": "default",
+            "id": "conf1",
+            "device": "PIC16F1847",
+            "imageType": "application",
+            "imagePath": "./out/ax-run8/default.elf",
+            "toolProperties": "default-tool-base",
+            "tool": "PICkit 4",
+            "packs": [
+                {
+                    "name": "PIC12-16F1xxx_DFP",
+                    "vendor": "Microchip",
+                    "version": "1.8.254"
+                }
+            ],
+            "fileSet": "default",
+            "toolchain": "default-XC8",
+            "userVariables": "default-uservariables",
+            "preBuildSteps": [],
+            "postBuildSteps": []
+        }
+    ],
+    "propertyGroups": [
+        {
+            "name": "default-uservariables",
+            "type": "uservariables",
+            "properties": {}
+        },
+        {
+            "name": "default-XC8",
+            "type": "toolchain",
+            "provider": "microchip.toolchains:xc8@3.00",
+            "properties": {}
+        },
+        {
+            "name": "default-tool-base",
+            "type": "tool",
+            "properties": {
+                "poweroptions.powerenable": false,
+                "voltagevalue": "5",
+                "debugoptions.debug-startup": "Run"
+            }
+        }
+    ],
+    "fileSets": [
+        {
+            "name": "default",
+            "files": [
+                {
+                    "include": "**/*",
+                    "exclude": "**/(_build|out|cmake|.vscode)/**/*"
+                }
+            ]
+        }
+    ]
+}

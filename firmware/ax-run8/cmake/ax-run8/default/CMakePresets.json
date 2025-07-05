@@ -2,8 +2,8 @@
     "version": 6,
     "configurePresets": [
         {
-            "name": "ax08_io_default_conf",
-            "binaryDir": "${fileDir}/../../../_build/ax-decoder/default",
+            "name": "ax_run8_default_conf",
+            "binaryDir": "${fileDir}/../../../_build/ax-run8/default",
             "generator": "Ninja",
             "toolchainFile": "${fileDir}/.generated/toolchain.cmake",
             "cacheVariables": {
