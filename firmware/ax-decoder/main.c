@@ -27,18 +27,18 @@
 
 typedef struct address_config {
     uint8_t address;
-    bool acitve_low;
+    bool active_low;
 } address_config_t;
 
 const address_config_t CONFIG[] = {
-    {.address = 0, .acitve_low = false},
-    {.address = 1, .acitve_low = false},
-    {.address = 2, .acitve_low = false},
-    {.address = 3, .acitve_low = false},
-    {.address = 3, .acitve_low = false},
-    {.address = 5, .acitve_low = false},
-    {.address = 6, .acitve_low = true},
-    {.address = 7, .acitve_low = true},
+    {.address = 0, .active_low = false},
+    {.address = 1, .active_low = false},
+    {.address = 2, .active_low = false},
+    {.address = 3, .active_low = false},
+    {.address = 4, .active_low = false},
+    {.address = 5, .active_low = false},
+    {.address = 6, .active_low = false},
+    {.address = 7, .active_low = false},
 };
 
 /* 
@@ -75,7 +75,7 @@ int main() {
     uint8_t disabled_state = 0;
     for (unsigned int i = 0; i < 8; ++i) {
         address_config_t config = CONFIG[i];
-        disabled_state |= config.acitve_low << i;
+        disabled_state |= config.active_low << i;
     }
 
     // Main loop
@@ -95,7 +95,7 @@ int main() {
         uint8_t data = 0;
         for (unsigned int i = 0; i < 8; ++i) {
             address_config_t config = CONFIG[i];
-            bool active = (address == config.address) ^ config.acitve_low;
+            bool active = (address == config.address) ^ config.active_low;
             data |= active << i;
         }
         PORTB = data;
