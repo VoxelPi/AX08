@@ -22,7 +22,7 @@
 
 #define _XTAL_FREQ 32000000
 
-/* 
+/*
     PIN MAPPING
     RA0 - RA3: [OUTPUT] output bits 0..3
     RB4 - RB7: [OUTPUT] output bits 4..7
@@ -59,13 +59,13 @@ int main() {
     ANSELA = 0b00000000;
     WPUA   = 0b00000000;
     TRISA  = 0b11110000;
-    
+
     // Initialize B pins.
     PORTB  = 0b00000000;
     LATB   = 0b00000000;
     ANSELB = 0b00000000;
     WPUB   = 0b00000000;
-    TRISB  = 0b00001111; // RB2 is a UART TX output
+    TRISB  = 0b00001011; // RB1 is a UART RX input, RB2 is a UART TX output
 
     // Configure UART baud rate.
     BAUDCONbits.BRG16 = 1; // Enable 16bit baud rate mode.
@@ -76,6 +76,7 @@ int main() {
     // Configure UART.
     RCSTAbits.SPEN = 1; // Serial port enabled. (Configures RX and TX pins as serial port pins)
     TXSTAbits.SYNC = 0; // Asynchronous mode.
+    TXSTAbits.TXEN = 1; // Enable transmit.
     RCSTAbits.CREN = 1; // Enable receive.
 
     // Configure Interrupts.
@@ -93,6 +94,7 @@ void __interrupt() ISR() {
     if (RCIF) {
         bitwise_byte_t data;
         data.byte = RCREG;
+        TXREG = data.byte; // ECHO received byte.
 
         RA0 = data.bit0;
         RA1 = data.bit1;
