@@ -10,8 +10,26 @@ char dst[count_of(src)];
 
 // UART defines
 // By default the stdout UART is `uart0`, so we will use the second one
-#define UART_ID uart1
+// #define UART_ID uart1
 #define BAUD_RATE 115200
+
+// void uart0_rx_irq_handler() {
+//     while (uart_is_readable(uart0)) {
+//         uint8_t data = uart_getc(uart0);
+//         if (uart_is_writable(uart1)) {
+//             uart_putc_raw(uart1, data);
+//         }
+//     }
+// }
+
+void uart1_rx_irq_handler() {
+    while (uart_is_readable(uart1)) {
+        uint8_t data = uart_getc(uart1);
+        if (uart_is_writable(uart0)) {
+            uart_putc_raw(uart0, data);
+        }
+    }
+}
 
 int main() {
     stdio_init_all();
@@ -24,25 +42,37 @@ int main() {
     // Set datasheet for more information on function select
     gpio_set_function(0, GPIO_FUNC_UART); // UART0 TX
     gpio_set_function(1, GPIO_FUNC_UART); // UART0 RX
+    gpio_set_function(2, GPIO_FUNC_UART); // UART0 CTS (Clear To Send, Pico INPUT, active low)
+    gpio_set_function(3, GPIO_FUNC_UART); // UART0 RTS (Request To Send, Pico OUTPUT, active low)
+
     gpio_set_function(4, GPIO_FUNC_UART); // UART1 TX
     gpio_set_function(5, GPIO_FUNC_UART); // UART1 RX
 
-    // Use some the various UART functions to send out data
-    // In a default system, printf will also output via the default UART
+    uart_set_hw_flow(uart0, true, true);
+    uart_set_hw_flow(uart1, false, false);
+    // uart_set_fifo_enabled(uart0, true);
+    // uart_set_fifo_enabled(uart1, false);
 
-    // Send out a string, with CR/LF conversions
-    // uart_puts(UART_ID, " Hello, UART!\n");
+    // irq_set_exclusive_handler(UART0_IRQ, uart0_rx_irq_handler);
+    irq_set_exclusive_handler(UART1_IRQ, uart1_rx_irq_handler);
 
-    // For more examples of UART use see https://github.com/raspberrypi/pico-examples/tree/master/uart
+    // irq_set_enabled(UART0_IRQ, true);
+    irq_set_enabled(UART1_IRQ, true);
 
-    char text[256];
+    // uart_set_irqs_enabled(uart0, true, false);
+    uart_set_irqs_enabled(uart1, true, false);
+
     char c;
-
     while (true) {
-        c = getc(stdin);
-        printf("Hello, World from USB '%c' HELP (%d)!\n", c, c);
-        uart_puts(uart0, "Hello, World from uart0!\n");
-        uart_putc(uart1, c);
-        // sleep_ms(1000);
+        if (uart_is_readable(uart0)) {
+            c = uart_getc(uart0);
+            uart_putc_raw(uart1, c);
+        }
+        // c = getc(stdin);
+        // printf("Hello, World from USB '%c' HELP (%d)!\n", c, c);
+        // uart_puts(uart0, "Hello, World from uart0!\n");
+        // uart_putc(uart1, c);
+        // uart_putc_raw(uart1, c);
+        sleep_ms(1);
     }
 }
