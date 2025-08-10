@@ -8,7 +8,7 @@ ports = serial.tools.list_ports.comports()
 for port in ports:
     print(f"  - {port.device}: {port.description}")
 
-bridge_port = serial.Serial("COM5", 512000)
+bridge_port = serial.Serial("COM7", 115200, rtscts=True)
 
 data = bytearray()
 
@@ -18,6 +18,8 @@ data = bytearray()
 #     bridge_port.write(b"\xFF")
 #     time.sleep(0.5)
 
+
+# bridge_port.write(b"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 for i in range(100000):
     # duty_cycle = (1 + math.sin(i*2*math.pi/200)) / 2
