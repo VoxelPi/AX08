@@ -42,16 +42,29 @@ Type|Value|Description
 ---|---|---
 `uint8`|1|The packet id.
 
+
 ### UPLOAD PROGRAM PACKET
 
-Uploads a program to the bridge. The bridge will respond with a [Program Info Packet](#program-info-packet).
+Uploads a program to the bridge. The bridge will respond with a [Program Upload Acknowledge Packet](#program-info-packet).
 
 Type|Value|Description
 ---|---|---
 `uint8`|100|The packet id.
 `string16`|`name`|The name of the program.
 `array<4, uint64>`|`hash`|The hash of the program.
-`array<65536, uint32>`|`instructions`|The instructions of program.
+`array<4, uint64>`|`instructions`|The instructions of program.
+
+
+### UPLOAD PROGRAM CHUNK PACKET
+
+Uploads a program chunk to the bridge. The bridge will respond with a [Program Chunk Upload Acknowledge Packet]().
+
+Type|Value|Description
+---|---|---
+`uint8`|101|The packet id.
+`array<4, uint64>`|`hash`|The hash of the chunk.
+`array<256, uint32>`|`instructions`|The instructions of the program chunk.
+
 
 ### DOWNLOAD PROGRAM PACKET
 
