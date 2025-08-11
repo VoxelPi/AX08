@@ -35,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(ax08-bridge src/main.c )
+add_executable(ax08-bridge src/main.c src/ax08/memory_unit.c src/bridge/protocol.c)
 
 pico_set_program_name(ax08-bridge "ax08-bridge")
 pico_set_program_version(ax08-bridge "0.1")
@@ -60,6 +60,7 @@ target_include_directories(ax08-bridge PRIVATE
 target_link_libraries(ax08-bridge
         hardware_dma
         hardware_pio
+        hardware_sha256
         )
 
 pico_add_extra_outputs(ax08-bridge)
