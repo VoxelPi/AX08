@@ -61,6 +61,7 @@ target_link_libraries(ax08-bridge
         hardware_dma
         hardware_pio
         hardware_sha256
+        pico_sha256
         )
 
 pico_add_extra_outputs(ax08-bridge)

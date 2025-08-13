@@ -2,8 +2,20 @@
 
 #include "hardware/dma.h"
 #include "hardware/uart.h"
+#include "pico/sha256.h"
+
+#include <string.h>
 
 PacketBuffer packets[N_PACKET_BUFFER];
+
+void update_packet_hash(PacketBuffer *buffer) {
+    pico_sha256_state_t state;
+    int result = pico_sha256_start_blocking(&state, SHA256_BIG_ENDIAN, true);
+    hard_assert(result == PICO_OK);
+    pico_sha256_update_blocking(&state, buffer->data - 4, buffer->size + 4); // Also hash size field.
+    // pico_sha256_update_blocking(&state, buffer->data, buffer->size);
+    pico_sha256_finish(&state, &buffer->hash);
+}
 
 void send_packet(PacketBuffer *buffer) {
     int channel = dma_claim_unused_channel(true);
@@ -19,7 +31,7 @@ void send_packet(PacketBuffer *buffer) {
         &channel_config,
         &uart_get_hw(uart0)->dr,
         buffer,
-        buffer->size + sizeof(uint16_t) + sizeof(sha256_result_t),
+        buffer->size + sizeof(uint32_t) + sizeof(sha256_result_t),
         true
     );
 

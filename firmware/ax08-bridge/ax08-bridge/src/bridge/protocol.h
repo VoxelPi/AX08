@@ -8,8 +8,10 @@
 
 typedef struct PacketBuffer {
     sha256_result_t hash;
-    uint16_t size;
+    uint32_t size;
     uint8_t data[MAX_PACKET_SIZE];
 } PacketBuffer;
+
+void update_packet_hash(PacketBuffer *buffer);
 
 void send_packet(PacketBuffer *buffer);
