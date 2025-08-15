@@ -12,6 +12,8 @@ typedef struct PacketBuffer {
     uint8_t data[MAX_PACKET_SIZE];
 } PacketBuffer;
 
+void bridge_protocol_init();
+
 void update_packet_hash(PacketBuffer *buffer);
 
 void send_packet(PacketBuffer *buffer);

@@ -67,6 +67,8 @@ int main() {
     // uart_set_irqs_enabled(uart0, true, false);
     // uart_set_irqs_enabled(uart1, true, false);
 
+    bridge_protocol_init();
+
     PacketBuffer buffer;
     strcpy(buffer.data, "Hello, World!");
     buffer.size = strlen(buffer.data);
