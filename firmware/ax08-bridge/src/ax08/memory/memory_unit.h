@@ -11,3 +11,5 @@ typedef struct AX08MemoryUnit {
 } AX08MemoryUnit;
 
 volatile extern AX08MemoryUnit memory_unit;
+
+void ax08_memory_init();

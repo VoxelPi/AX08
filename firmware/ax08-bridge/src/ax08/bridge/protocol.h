@@ -13,10 +13,10 @@ typedef struct PacketBuffer {
     uint8_t data[MAX_PACKET_PAYLOAD_SIZE];
 } PacketBuffer;
 
-void bridge_protocol_init();
+void ax08_bridge_protocol_init();
 
-PacketBuffer* bridge_read_packet();
+PacketBuffer* ax08_bridge_read_packet();
 
-void bridge_send_packet(const PacketBuffer *buffer);
+void ax08_bridge_send_packet(const PacketBuffer *buffer);
 
-void bridge_calclate_packet_hash(PacketBuffer *buffer);
+void ax08_bridge_calclate_packet_hash(PacketBuffer *buffer);
