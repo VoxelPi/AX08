@@ -1,5 +1,7 @@
 out/
 _build/
+.generated/
+*.mplab-local.json
 
 
 # Prerequisites

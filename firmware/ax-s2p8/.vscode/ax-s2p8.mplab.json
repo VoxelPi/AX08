@@ -1,9 +1,9 @@
 {
-    "version": "1.5",
+    "version": "1.6",
     "configurations": [
         {
             "name": "default",
-            "id": "conf1",
+            "id": "",
             "device": "PIC16F1847",
             "imageType": "application",
             "imagePath": "./out/ax-s2p8/default.elf",
@@ -39,7 +39,7 @@
             "name": "default-tool-base",
             "type": "tool",
             "properties": {
-                "poweroptions.powerenable": false,
+                "poweroptions.powerenable": true,
                 "voltagevalue": "5",
                 "debugoptions.debug-startup": "Run"
             }

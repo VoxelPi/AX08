@@ -65,7 +65,7 @@ int main() {
     LATB   = 0b00000000;
     ANSELB = 0b00000000;
     WPUB   = 0b00000000;
-    TRISB  = 0b11111010; // RB2 is a UART TX output
+    TRISB  = 0b11111011; // RB2 is a UART TX output
 
     // Configure UART baud rate.
     BAUDCONbits.BRG16 = 1; // Enable 16bit baud rate mode.
@@ -91,14 +91,6 @@ int main() {
 void __interrupt() ISR() {
     // Check receive interrupt.
     if (TXIF) {
-        RB0 = 1;
-        NOP();
-        NOP();
-        NOP();
-        NOP();
-        NOP();
-        RB0 = 0;
-
         bitwise_byte_t data;
         data.bit0 = RA0;
         data.bit1 = RA1;
