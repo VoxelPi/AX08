@@ -23,9 +23,9 @@ char dst[count_of(src)];
 
 uint64_t timestamp_last_rx = 0;
 
-void uart0_rx_irq_handler() {
-    timestamp_last_rx = time_us_64();
-}
+// void uart0_rx_irq_handler() {
+//     timestamp_last_rx = time_us_64();
+// }
 
 // void uart1_rx_irq_handler() {
 //     while (uart_is_readable(uart1)) {
@@ -54,25 +54,28 @@ int main() {
     // irq_set_enabled(UART1_IRQ, true);
     // uart_set_irqs_enabled(uart1, true, false);
 
+    // Initialize bridge protocol module.
     bridge_protocol_init();
 
     PacketBuffer buffer;
     strcpy(buffer.data, "Hello, World!");
     buffer.size = strlen(buffer.data);
 
-    // for (unsigned int i = 0; i < MAX_PACKET_SIZE; ++i) {
-    //     buffer.data[i] = i & 0xFF;
-    // }
-    // buffer.size = MAX_PACKET_SIZE;
+    bridge_calclate_packet_hash(&buffer);
 
-    update_packet_hash(&buffer);
+    // char c;
 
-    char c;
     while (true) {
-        if (uart_is_readable(uart0)) {
-            c = uart_getc(uart0);
-            send_packet(&buffer);
+        // if (uart_is_readable(uart0)) {
+        //     c = uart_getc(uart0);
+        //     bridge_send_packet(&buffer);
+        // }
+        const PacketBuffer *received_packet = bridge_read_packet();
+        if (received_packet != NULL) {
+            bridge_send_packet(received_packet);
         }
+        // uart_puts(uart1, "Test\n");
+
         sleep_ms(1);
     }
 }
