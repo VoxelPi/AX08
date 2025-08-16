@@ -40,9 +40,8 @@ void bridge_init_rx_header() {
         false
     );
 
-    // // Clear any remaining interupts.
+    // Clear any remaining interupts.
     dma_irqn_acknowledge_channel(1, dma_ch_rx_header);
-    dma_irqn_set_channel_enabled(1, dma_ch_rx_header, true);
     dma_channel_start(dma_ch_rx_header);
 }
 
@@ -62,9 +61,8 @@ void bridge_init_rx_payload(uint32_t size) {
         false
     );
 
-    // // Clear any remaining interupts.
+    // Clear any remaining interupts.
     dma_irqn_acknowledge_channel(1, dma_ch_rx_payload);
-    dma_irqn_set_channel_enabled(1, dma_ch_rx_payload, true);
     dma_channel_start(dma_ch_rx_payload);
 }
 

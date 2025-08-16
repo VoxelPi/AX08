@@ -14,18 +14,6 @@ ser = serial.Serial(
     timeout=0.1         # Non-blocking read
 )
 
-# Give the port a moment to initialize
-time.sleep(2)
-
-# --- Send a single raw byte ---
-# Example: sending character 'A' (0x41)
-# ser.write(b'A')
-
-# print("Sent 'A'. Listening for incoming data...")
-
-# ser.read(10000)
-
-
 def send_packet(payload: bytes):
     size = len(payload).to_bytes(4, byteorder='little', signed=False)
     if len(payload) > 2048:
@@ -39,9 +27,12 @@ def send_packet(payload: bytes):
     ser.write(data)
 
     # print(m.hexdigest())
-# send_packet(b"L")
-send_packet(b"Hello, AX08L!\n")
-# send_packet(b"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n")
+
+
+packet_message = bytes(range(256))
+# packet_message = b"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n"
+packet_message = b"Hello, AX08L!\n"
+send_packet(packet_message)
 
 try:
     while True:
@@ -56,12 +47,13 @@ try:
             hash_valid = hash_part == m.digest()
 
             size = size_part[0] + (size_part[1] << 8) + (size_part[2] << 16) + (size_part[3] << 24)
+            # print(f"Received packet, size={size}, hash={hash_valid}: \"{data_part.hex()}\"")
             print(f"Received packet, size={size}, hash={hash_valid}: \"{data_part.decode("utf-8").replace("\n", "\\n")}\"")
             if not hash_valid:
                 print(f"RECEIVED: {hash_part.hex()}")
                 print(f"SHOULD BE: {m.digest().hex()}")
 
-        send_packet(b"Hello, AX08L!\n")
+        send_packet(packet_message)
         time.sleep(1)
 
 except KeyboardInterrupt:
