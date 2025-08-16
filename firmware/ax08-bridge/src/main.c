@@ -8,8 +8,8 @@
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 
-#include "ax08/memory_unit.h"
-#include "bridge/protocol.h"
+#include "ax08/memory/memory_unit.h"
+#include "ax08/bridge/protocol.h"
 
 #define BAUD_RATE 115200
 

@@ -16,7 +16,7 @@
 
 #define BRIDGE_BAUD_RATE 115200
 
-volatile PacketBuffer rx_packets[N_RX_PACKET_BUFFERS];
+PacketBuffer rx_packets[N_RX_PACKET_BUFFERS];
 volatile PacketBuffer *rx_packet = rx_packets;
 PacketBuffer *processed_rx_packet = rx_packets;
 
