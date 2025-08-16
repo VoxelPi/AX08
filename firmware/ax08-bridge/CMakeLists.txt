@@ -41,7 +41,8 @@ pico_set_program_name(ax08-bridge "ax08-bridge")
 pico_set_program_version(ax08-bridge "0.1")
 
 # Generate PIO header
-# pico_generate_pio_header(ax08-bridge ${CMAKE_CURRENT_LIST_DIR}/blink.pio)
+pico_generate_pio_header(ax08-bridge ${CMAKE_CURRENT_LIST_DIR}/src/uart_rx.pio)
+pico_generate_pio_header(ax08-bridge ${CMAKE_CURRENT_LIST_DIR}/src/uart_tx.pio)
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(ax08-bridge 0)
