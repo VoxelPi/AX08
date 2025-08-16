@@ -25,10 +25,6 @@ int dma_ch_rx_payload = -1;
 int dma_ch_tx = -1;
 
 void bridge_init_rx_header() {
-    if (dma_channel_is_busy(dma_ch_rx_header)) {
-        uart_puts(uart1, "HIRX BAD\n");
-    }
-
     dma_channel_config config = dma_channel_get_default_config(dma_ch_rx_header);
     channel_config_set_transfer_data_size(&config, DMA_SIZE_8);
     channel_config_set_read_increment(&config, false);
@@ -44,25 +40,13 @@ void bridge_init_rx_header() {
         false
     );
 
-    // char hilfe[12];
-    // itoa((uint32_t) rx_packet, hilfe, 10);
-    // uart_puts(uart1, hilfe);
-    // uart_puts(uart1, "\n");
-    uart_puts(uart1, "HIRX\n");
-
     // // Clear any remaining interupts.
     dma_irqn_acknowledge_channel(1, dma_ch_rx_header);
     dma_irqn_set_channel_enabled(1, dma_ch_rx_header, true);
-
-    // // TODO: Probably set some status variable for watchdog.
     dma_channel_start(dma_ch_rx_header);
 }
 
 void bridge_init_rx_payload(uint32_t size) {
-    if (dma_channel_is_busy(dma_ch_rx_payload)) {
-        uart_puts(uart1, "PIRX BAD\n");
-    }
-
     dma_channel_config config = dma_channel_get_default_config(dma_ch_rx_payload);
     channel_config_set_transfer_data_size(&config, DMA_SIZE_8);
     channel_config_set_read_increment(&config, false);
@@ -82,18 +66,9 @@ void bridge_init_rx_payload(uint32_t size) {
     dma_irqn_acknowledge_channel(1, dma_ch_rx_payload);
     dma_irqn_set_channel_enabled(1, dma_ch_rx_payload, true);
     dma_channel_start(dma_ch_rx_payload);
-    uart_puts(uart1, "PIRX\n");
 }
 
 void bridge_handle_rx_header() {
-    uart_puts(uart1, "HRX\n");
-    // uart_puts(uart1, "RX HEADER\n");
-
-    // char hilfe[10];
-    // itoa(rx_packet->size, hilfe, 10);
-    // uart_puts(uart1, hilfe);
-    // uart_puts(uart1, "\n");
-
     // Get the size of the packet.
     uint32_t size = rx_packet->size;
 
@@ -108,9 +83,6 @@ void bridge_handle_rx_header() {
 }
 
 void bridge_handle_rx_payload() {
-    uart_puts(uart1, "PRX\n");
-    // uart_puts(uart1, rx_packet->data);
-
     // Increment packet pointer.
     rx_packet += 1;
     if (rx_packet >= rx_packets + N_RX_PACKET_BUFFERS) {
@@ -122,8 +94,6 @@ void bridge_handle_rx_payload() {
 }
 
 void bridge_dma_irq1_handler() {
-    uart_puts(uart1, "S\n");
-
     // Check if packet header was received.
     if (dma_irqn_get_channel_status(1, dma_ch_rx_header)) {
         bridge_handle_rx_header();
@@ -135,8 +105,6 @@ void bridge_dma_irq1_handler() {
         bridge_handle_rx_payload();
         dma_irqn_acknowledge_channel(1, dma_ch_rx_payload);
     }
-
-    uart_puts(uart1, "E\n");
 }
 
 void bridge_protocol_init() {
@@ -213,6 +181,4 @@ void bridge_send_packet(const PacketBuffer *buffer) {
     );
 
     dma_channel_wait_for_finish_blocking(dma_ch_tx);
-
-    dma_channel_unclaim(dma_ch_tx);
 }

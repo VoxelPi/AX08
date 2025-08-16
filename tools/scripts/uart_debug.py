@@ -45,25 +45,24 @@ send_packet(b"Hello, AX08L!\n")
 
 try:
     while True:
-        print("TEST")
         data = ser.read(2048+32+4)  # Read up to 1024 bytes
         if data:
-            # print(f"Received ({len(data)} bytes): {data}")
-
             hash_part = data[0:32]
             size_part = data[32:36]
             data_part = data[36:]
 
             m = hashlib.sha256()
             m.update(data[32:])
+            hash_valid = hash_part == m.digest()
 
             size = size_part[0] + (size_part[1] << 8) + (size_part[2] << 16) + (size_part[3] << 24)
-            print(f"Received packet, size={size}, hash={hash_part == m.digest()}: \"{data_part.decode("utf-8")}\"")
-            print(f"RECEIVED: {hash_part.hex()}")
-            print(f"SHOULD BE: {m.digest().hex()}")
+            print(f"Received packet, size={size}, hash={hash_valid}: \"{data_part.decode("utf-8").replace("\n", "\\n")}\"")
+            if not hash_valid:
+                print(f"RECEIVED: {hash_part.hex()}")
+                print(f"SHOULD BE: {m.digest().hex()}")
 
-        send_packet(b"L")
-        time.sleep(5)
+        send_packet(b"Hello, AX08L!\n")
+        time.sleep(1)
 
 except KeyboardInterrupt:
     print("\nExiting.")

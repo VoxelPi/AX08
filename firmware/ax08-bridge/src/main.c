@@ -1,27 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "pico/stdlib.h"
 #include "hardware/dma.h"
 #include "hardware/pio.h"
 #include "hardware/uart.h"
 #include "hardware/timer.h"
-
+#include "pico/stdlib.h"
 #include "pico/multicore.h"
 
 #include "ax08/memory_unit.h"
 #include "bridge/protocol.h"
 
-// Data will be copied from src to dst
-const char src[] = "Hello, world! (from DMA)";
-char dst[count_of(src)];
-
-// UART defines
-// By default the stdout UART is `uart0`, so we will use the second one
-// #define UART_ID uart1
 #define BAUD_RATE 115200
 
-uint64_t timestamp_last_rx = 0;
+// uint64_t timestamp_last_rx = 0;
 
 // void uart0_rx_irq_handler() {
 //     timestamp_last_rx = time_us_64();
@@ -47,7 +39,7 @@ int main() {
     gpio_set_function(4, GPIO_FUNC_UART); // UART1 TX
     gpio_set_function(5, GPIO_FUNC_UART); // UART1 RX
 
-    uart_set_hw_flow(uart1, false, false);
+    // uart_set_hw_flow(uart1, false, false);
     // uart_set_fifo_enabled(uart1, false);
 
     // irq_set_exclusive_handler(UART1_IRQ, uart1_rx_irq_handler);
@@ -57,25 +49,10 @@ int main() {
     // Initialize bridge protocol module.
     bridge_protocol_init();
 
-    PacketBuffer buffer;
-    strcpy(buffer.data, "Hello, World!");
-    buffer.size = strlen(buffer.data);
-
-    bridge_calclate_packet_hash(&buffer);
-
-    // char c;
-
     while (true) {
-        // if (uart_is_readable(uart0)) {
-        //     c = uart_getc(uart0);
-        //     bridge_send_packet(&buffer);
-        // }
         const PacketBuffer *received_packet = bridge_read_packet();
         if (received_packet != NULL) {
             bridge_send_packet(received_packet);
         }
-        // uart_puts(uart1, "Test\n");
-
-        sleep_ms(1);
     }
 }
