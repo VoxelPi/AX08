@@ -4,6 +4,7 @@
 
 #include "hardware/dma.h"
 #include "hardware/pio.h"
+#include "hardware/uart.h"
 #include "pico/multicore.h"
 
 #include "uart_rx.pio.h"
@@ -182,8 +183,10 @@ void memory_init_data_pio() {
 }
 
 void ax08_memory_core1_entry() {
-    data_word_out = data_word_in + data_address_word.bytes[0];
-    instruction_word.word = instruction_address_word.word;
+    while (true) {
+        data_word_out = data_word_in + data_address_word.bytes[0];
+        instruction_word.word = instruction_address_word.word;
+    }
 }
 
 void ax08_memory_init() {
