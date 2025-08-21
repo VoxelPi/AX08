@@ -17,8 +17,6 @@
 #pragma config BORV = LO        // Brown-out Reset Voltage Selection (Brown-out Reset Voltage (Vbor), low trip point selected.)
 #pragma config LVP = OFF        // Low-Voltage Programming Enable (High-voltage on MCLR/VPP must be used for programming)
 
-#include <language_support.h>
-#include <builtins.h>
 #include <xc.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -41,7 +39,7 @@ const address_config_t CONFIG[] = {
     {.address = 7, .active_low = false},
 };
 
-/* 
+/*
     PIN MAPPING:
         RA0 - RA4: INPUT, address
         RA5 - RA6: INPUT, unused
@@ -63,7 +61,7 @@ int main() {
     ANSELA = 0b00000000;
     WPUA   = 0b00000000;
     TRISA  = 0b11111111;
-    
+
     // Initialize B pins.
     PORTB  = 0b00000000;
     LATB   = 0b00000000;
@@ -71,7 +69,7 @@ int main() {
     WPUB   = 0b00000000;
     TRISB  = 0b00000000;
 
-    // Calculate state of 
+    // Calculate state of
     uint8_t disabled_state = 0;
     for (unsigned int i = 0; i < 8; ++i) {
         address_config_t config = CONFIG[i];
@@ -87,7 +85,7 @@ int main() {
             PORTB = disabled_state;
             continue;
         }
-        
+
         // Get the current address for RA0-RA4
         int address = PORTA & 0b11111;
 
