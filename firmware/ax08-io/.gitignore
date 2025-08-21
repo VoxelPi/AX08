@@ -1,6 +1,6 @@
 out/
 _build/
-
+.generated/
 
 # Prerequisites
 *.d
