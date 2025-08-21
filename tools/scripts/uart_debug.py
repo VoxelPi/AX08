@@ -18,7 +18,7 @@ def send_packet(payload: bytes):
     size = len(payload).to_bytes(4, byteorder='little', signed=False)
     if len(payload) > 2048:
         print("TO LONG")
-ö
+
     m = hashlib.sha256()
     m.update(size + payload)
     hash = m.digest()
