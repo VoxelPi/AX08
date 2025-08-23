@@ -33,16 +33,24 @@ project(ax08-bridge C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# Add executable. Default name is the project name, version 0.1
+execute_process(
+    COMMAND git describe --always --dirty
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+# Make it available as a define to the compiler
+add_compile_definitions(AX08_GIT_VERSION=\"${GIT_VERSION}\")
 
+# Add executable.
 add_executable(
-    ax08-bridge 
-    src/main.c 
-    src/ax08/ax08.c 
-    src/ax08/memory/memory_unit.c 
+    ax08-bridge
+    src/main.c
+    src/ax08/ax08.c
+    src/ax08/memory/memory_unit.c
     src/ax08/bridge/protocol.c
     src/ax08/sequencer/sequencer.c
-src/ax08/util/buffer.c
+    src/ax08/util/buffer.c
 )
 
 pico_set_program_name(ax08-bridge "ax08-bridge")

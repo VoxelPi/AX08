@@ -4,4 +4,7 @@
 #include "memory/memory_unit.h"
 #include "sequencer/sequencer.h"
 
+#define AX08_PROTOCOL_VERSION 0
+#define AX08_VERSION "0.1.0"
+
 void ax08_init();

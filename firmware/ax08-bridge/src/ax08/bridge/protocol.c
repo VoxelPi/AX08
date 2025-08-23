@@ -154,7 +154,7 @@ PacketBuffer* ax08_bridge_read_packet() {
     return received_packet;
 }
 
-void ax08_bridge_calclate_packet_hash(PacketBuffer *buffer) {
+void ax08_bridge_packet_update_sha256(PacketBuffer *buffer) {
     pico_sha256_state_t state;
     int result = pico_sha256_start_blocking(&state, SHA256_BIG_ENDIAN, true);
     hard_assert(result == PICO_OK);
@@ -179,4 +179,20 @@ void ax08_bridge_send_packet(const PacketBuffer *buffer) {
     );
 
     dma_channel_wait_for_finish_blocking(dma_ch_tx);
+}
+
+void ax08_bridge_packet_init_reader(const PacketBuffer *buffer, BufferReader *reader) {
+    reader->data = buffer->data;
+    reader->size = buffer->size;
+    reader->index = 0;
+}
+
+void ax08_bridge_packet_init_writer(PacketBuffer *buffer, BufferWriter *writer) {
+    writer->data = buffer->data;
+    writer->size = MAX_PACKET_PAYLOAD_SIZE;
+    writer->index = 0;
+}
+
+void ax08_bridge_packet_close_writer(PacketBuffer *buffer, const BufferWriter *writer) {
+    buffer->size = writer->index;
 }
