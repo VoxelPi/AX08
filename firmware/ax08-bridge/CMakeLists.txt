@@ -42,6 +42,7 @@ add_executable(
     src/ax08/memory/memory_unit.c 
     src/ax08/bridge/protocol.c
     src/ax08/sequencer/sequencer.c
+src/ax08/util/buffer.c
 )
 
 pico_set_program_name(ax08-bridge "ax08-bridge")
