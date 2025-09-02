@@ -26,7 +26,7 @@
 #define BASE_DELAY 500
 #define MS_DELAY_LONG 500
 
-/* 
+/*
     PIN MAPPING:
         RA5 - RA7: unused (in)
         RA0: MODE (in)
@@ -34,7 +34,7 @@
         RA2: CYCLE (in)
         RA3: STEP (in)
         RA4: DELAY1 (in)
-        
+
         RB1, RB2: UART RX (in), UART TX (out)
         RB0: PC_SOURCE_INC (out)
         RB3: FREEZE_WRD (out)
@@ -66,17 +66,17 @@ void main() {
     ANSELA = 0b00000000;
     WPUA   = 0b00000000;
     TRISA  = 0b11111111;
-    
+
     // Initialize B pins.
     PORTB  = 0b00000000;
     LATB   = 0b00000000;
     ANSELB = 0b00000000;
     WPUB   = 0b00000000;
     TRISB  = 0b00000010;
-    
+
     uint8_t state = 0;
     uint8_t prev_mode = 0;
-    
+
     __delay_ms(500);
     RB6 = 1;
     __delay_ms(1);
@@ -92,38 +92,38 @@ void main() {
         if ((PORTA & 0b00000001) == 0) { // MODE check
             LATB = LATB & 0b00000100;
             state = 0;
-            
+
             if ((PORTA & 0b00000010) == 0) { // ACTION button check
                 __delay_ms(50);
                 if ((PORTA & 0b00000010) != 0) goto act0_end;
                 while ((PORTA & 0b00000010) == 0);
                 __delay_ms(50);
                 if ((PORTA & 0b00000010) == 0) goto act0_end;
-                
+
                 RB6 = 1;
                 __delay_ms(1);
                 RB6 = 0;
                 __delay_ms(10);
             }
             act0_end:
-            
+
             prev_mode = 0;
         }
         else {
             if ((PORTA & 0b10000000) == 0) { // BREAK check
                 __delay_ms(50);
                 if ((PORTA & 0b10000000) != 0) goto brk0_end;
-                
+
                 state = 0;
                 __delay_ms(100);
             }
             brk0_end:
-            
+
             if (prev_mode == 0) {
                 __delay_ms(500);
                 prev_mode = 1;
             }
-            
+
             if (state == 0) {
                 stpmode_start:
                 if ((PORTA & 0b00000010) == 0) { // ACTION button check
@@ -156,28 +156,28 @@ void main() {
             }
             else if (state == 1) {
                 LATB = LATB & 0b00000100;
-                
+
                 LATB = LATB | 0b00001000;
                 stepdelay();
-                
+
                 LATB = LATB & 0b00000100;
                 LATB = LATB | 0b00010000;
                 stepdelay();
-                
+
                 LATB = LATB & 0b00000100;
                 LATB = LATB | 0b00100001;
                 stepdelay();
-                
+
                 LATB = LATB & 0b00000101;
                 LATB = LATB | 0b01000000;
                 stepdelay();
-                
+
                 LATB = LATB & 0b00000100;
                 stepdelay();
-                
+
                 LATB = LATB | 0b10000000;
                 stepdelay();
-                
+
                 act1_start:
                 if ((PORTA & 0b00000010) == 0) { // ACTION button check
                     __delay_ms(50);
@@ -188,43 +188,43 @@ void main() {
 
                     state = 0;
                 }
-                
+
                 LATB = LATB & 0b00000100;
             }
             else if (state == 2) {
                 LATB = LATB & 0b00000100;
-                
+
                 LATB = LATB | 0b00001000;
                 stepdelay();
-                
+
                 LATB = LATB & 0b00000100;
                 LATB = LATB | 0b00010000;
                 stepdelay();
-                
+
                 LATB = LATB & 0b00000100;
                 LATB = LATB | 0b00100001;
                 stepdelay();
-                
+
                 LATB = LATB & 0b00000101;
                 LATB = LATB | 0b01000000;
                 stepdelay();
-                
+
                 LATB = LATB & 0b00000100;
                 stepdelay();
-                
+
                 LATB = LATB | 0b10000000;
                 stepdelay();
-                
+
                 LATB = LATB & 0b00000100;
-                
+
                 state = 0;
             }
             else if (state == 3) {
                 LATB = LATB & 0b00000100;
-                
+
                 LATB = LATB | 0b00001000;
                 __delay_us(BASE_DELAY);
-                
+
                 uint8_t loopvar = 0;
                 while (loopvar == 0) {
                     if ((PORTA & 0b00001000) == 0) { // STEP button check
@@ -233,15 +233,15 @@ void main() {
                         while ((PORTA & 0b00001000) == 0);
                         __delay_ms(50);
                         if ((PORTA & 0b00001000) == 0) continue;
-                        
+
                         loopvar = 1;
                     }
                 }
-                
+
                 LATB = LATB & 0b00000100;
                 LATB = LATB | 0b00010000;
                 __delay_us(BASE_DELAY);
-                
+
                 loopvar = 0;
                 while (loopvar == 0) {
                     if ((PORTA & 0b00001000) == 0) { // STEP button check
@@ -250,15 +250,15 @@ void main() {
                         while ((PORTA & 0b00001000) == 0);
                         __delay_ms(50);
                         if ((PORTA & 0b00001000) == 0) continue;
-                        
+
                         loopvar = 1;
                     }
                 }
-                
+
                 LATB = LATB & 0b00000100;
                 LATB = LATB | 0b00100001;
                 __delay_us(BASE_DELAY);
-                
+
                 loopvar = 0;
                 while (loopvar == 0) {
                     if ((PORTA & 0b00001000) == 0) { // STEP button check
@@ -267,15 +267,15 @@ void main() {
                         while ((PORTA & 0b00001000) == 0);
                         __delay_ms(50);
                         if ((PORTA & 0b00001000) == 0) continue;
-                        
+
                         loopvar = 1;
                     }
                 }
-                
+
                 LATB = LATB & 0b00000101;
                 LATB = LATB | 0b01000000;
                 __delay_us(BASE_DELAY);
-                
+
                 loopvar = 0;
                 while (loopvar == 0) {
                     if ((PORTA & 0b00001000) == 0) { // STEP button check
@@ -284,14 +284,14 @@ void main() {
                         while ((PORTA & 0b00001000) == 0);
                         __delay_ms(50);
                         if ((PORTA & 0b00001000) == 0) continue;
-                        
+
                         loopvar = 1;
                     }
                 }
-                
+
                 LATB = LATB & 0b00000100;
                 __delay_us(BASE_DELAY);
-                
+
                 loopvar = 0;
                 while (loopvar == 0) {
                     if ((PORTA & 0b00001000) == 0) { // STEP button check
@@ -300,14 +300,14 @@ void main() {
                         while ((PORTA & 0b00001000) == 0);
                         __delay_ms(50);
                         if ((PORTA & 0b00001000) == 0) continue;
-                        
+
                         loopvar = 1;
                     }
                 }
-                
+
                 LATB = LATB | 0b10000000;
                 __delay_us(BASE_DELAY);
-                
+
                 loopvar = 0;
                 while (loopvar == 0) {
                     if ((PORTA & 0b00001000) == 0) { // STEP button check
@@ -316,11 +316,11 @@ void main() {
                         while ((PORTA & 0b00001000) == 0);
                         __delay_ms(50);
                         if ((PORTA & 0b00001000) == 0) continue;
-                        
+
                         loopvar = 1;
                     }
                 }
-                
+
                 LATB = LATB & 0b00000100;
                 state = 0;
             }

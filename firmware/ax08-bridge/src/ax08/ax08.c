@@ -19,6 +19,7 @@ void ax08_init() {
             switch (packet_id) {
             case 0:
                 // Echo packet.
+                PICO_DEFAULT_LED_PIN
                 ax08_bridge_send_packet(received_packet);
                 break;
 
