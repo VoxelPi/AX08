@@ -19,6 +19,7 @@
 
 #include <xc.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #define _XTAL_FREQ 32000000
 
@@ -78,29 +79,28 @@ int main() {
     TXSTAbits.SYNC = 0; // Asynchronous mode.
     TXSTAbits.TXEN = 1;
 
-    // Configure Interrupts.
-    PIE1bits.TXIE = 1;   // Enable UART transmit interrupt.
-    INTCONbits.PEIE = 1; // Enable peripheral interrupts.
-    INTCONbits.GIE = 1;  // Enable interrupts.
-
     // Main loop
-    while (true)
-        ;
-}
+    uint8_t current_state = 0;
+    while (true) {
+        // Wait for the previous state to be send.
+        // while (!TXIF)
+        //     ;
 
-void __interrupt() ISR() {
-    // Check receive interrupt.
-    if (TXIF) {
-        bitwise_byte_t data;
-        data.bit0 = RA0;
-        data.bit1 = RA1;
-        data.bit2 = RA2;
-        data.bit3 = RA3;
-        data.bit4 = RB4;
-        data.bit5 = RB5;
-        data.bit6 = RB6;
-        data.bit7 = RB7;
+        // Wait for a state change.
+        bitwise_byte_t data = { .byte = current_state };
+        while (data.byte == current_state) {
+            data.bit0 = RA0;
+            data.bit1 = RA1;
+            data.bit2 = RA2;
+            data.bit3 = RA3;
+            data.bit4 = RB4;
+            data.bit5 = RB5;
+            data.bit6 = RB6;
+            data.bit7 = RB7;
+        }
+        current_state = data.byte;
 
-        TXREG = data.byte;
+        // Send the new state.
+        TXREG = current_state;
     }
 }
