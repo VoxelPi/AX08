@@ -10,7 +10,9 @@
 #include "uart_rx.pio.h"
 #include "uart_tx.pio.h"
 
-#define AX08_MEMORY_BAUD 115200
+#include "program.h"
+
+#define AX08_MEMORY_BAUD 2000000
 
 // Pin mapping
 const unsigned int PINS_MEMORY_INSTRUCTION_ADDRESS[2] = {14, 15};
@@ -22,8 +24,8 @@ const unsigned int PINS_MEMORY_DATA_ADDRESS[2] = {18, 19};
 #define PIN_MEMORY_DATA_OUT 21
 
 // Extra pins
-#define PIN_MEMORY_OPCODE 26
-#define PIN_MEMORY_HOLD  27
+#define PIN_MEMORY_OPCODE 26 // Opcode low = Write
+#define PIN_MEMORY_HOLD  27 // Hold rising -> take input
 
 volatile AX08MemoryUnit memory_unit;
 
@@ -42,6 +44,8 @@ volatile byteint32 instruction_word;
 volatile byteint16 data_address_word;
 volatile uint8_t data_word_in;
 volatile uint8_t data_word_out;
+
+uint8_t memory_data[0x10000];
 
 void memory_init_instruction_pio() {
     int tx_program_offset = pio_add_program(pio0, &uart_tx_program);
@@ -183,9 +187,22 @@ void memory_init_data_pio() {
 }
 
 void ax08_memory_core1_entry() {
+    bool is_prev_hold = false;
     while (true) {
-        data_word_out = data_word_in + data_address_word.bytes[0];
-        instruction_word.word = instruction_address_word.word;
+        bool is_write = !gpio_get(PIN_MEMORY_OPCODE);
+        bool is_hold = gpio_get(PIN_MEMORY_HOLD);
+
+        if (is_write) {
+            if (is_hold && !is_prev_hold) {
+                memory_data[data_address_word.word] = data_word_in;
+            }
+            is_prev_hold = is_hold;
+        } else {
+            is_prev_hold = false;
+        }
+
+        data_word_out = memory_data[data_address_word.word];
+        instruction_word.word = ax08_program_instructions[instruction_address_word.word];
     }
 }
 
@@ -194,6 +211,11 @@ void ax08_memory_init() {
     memory_init_instruction_pio();
     memory_init_address_pio();
     memory_init_data_pio();
+
+    gpio_init(PIN_MEMORY_OPCODE);
+    gpio_set_dir(PIN_MEMORY_OPCODE, GPIO_IN); 
+    gpio_init(PIN_MEMORY_HOLD);
+    gpio_set_dir(PIN_MEMORY_HOLD, GPIO_IN); 
 
     multicore_launch_core1(ax08_memory_core1_entry);
 }
