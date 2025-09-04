@@ -1,11 +1,17 @@
 #include "ax08.h"
 
 #include "util/buffer.h"
+#include "hardware/gpio.h"
 
 void ax08_init() {
     ax08_memory_init();
     ax08_sequencer_init();
     ax08_bridge_protocol_init();
+
+    // Turn on state led.gpio_put(PICO_DEFAULT_LED_PIN, led_on);
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
 
     while (true) {
         const PacketBuffer *received_packet = ax08_bridge_read_packet();
