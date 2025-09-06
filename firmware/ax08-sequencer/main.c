@@ -142,10 +142,10 @@ void ax08_seq_handle_input(uint8_t input_state) {
     previous_input_state = input_state;
 
     // Check inputs.
-    bool input_debug_mode       = (input_events & 0b00000010) != 0;
+    bool input_debug_mode      = (input_events & 0b00000010) != 0;
     bool input_run_cycle       = (input_events & 0b00000100) != 0;
     bool input_run_instruction = (input_events & 0b00001000) != 0;
-    bool input_change_speed     = (input_events & 0b00010000) != 0;
+    bool input_change_speed    = (input_events & 0b00010000) != 0;
 
     // Handle events.
     if (input_debug_mode) {
