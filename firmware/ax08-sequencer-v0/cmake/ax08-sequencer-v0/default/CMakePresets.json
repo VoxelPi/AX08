@@ -2,8 +2,8 @@
     "version": 6,
     "configurePresets": [
         {
-            "name": "ax08_sequencer_default_conf",
-            "binaryDir": "${fileDir}/../../../_build/ax08-sequencer/default",
+            "name": "ax08_sequencer_v0_default_conf",
+            "binaryDir": "${fileDir}/../../../_build/ax08-sequencer-v0/default",
             "generator": "Ninja",
             "toolchainFile": "${fileDir}/.generated/toolchain.cmake",
             "cacheVariables": {

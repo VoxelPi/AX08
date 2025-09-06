@@ -52,7 +52,7 @@ void stepdelay() {
     return;
 }
 
-void main() {
+int main() {
 
     // Setup the system clock.
     OSCCONbits.SPLLEN = 1;    // Enable 4x PLL.
