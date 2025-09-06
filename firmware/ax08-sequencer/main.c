@@ -92,6 +92,14 @@ uint8_t i_next_input_state = 0;
 uint8_t previous_input_state = INPUT_MASK;
 volatile bool poll_input = true;
 
+/**
+    Variables related to the UART bridge link.
+*/
+#define BRIDGE_UART_BUFFER_SIZE 32                  // The size of the receive buffer.
+volatile char buffer_data[BRIDGE_UART_BUFFER_SIZE]; // The receive buffer.
+uint16_t i_read;                                    // The location of the read pointer.
+volatile uint16_t i_write;                          // The location of the write pointer.
+
 #pragma region Library Functions
 
 /**
@@ -257,6 +265,13 @@ int main() {
     T4CONbits.T4CKPS = 0b11;      // Use a prescaler of 1:64
     T4CONbits.TMR4ON = true;      // Enable the timer.
 
+    // Configure UART
+    PIE1bits.RCIE = true;   // Enable UART RX interrupts.
+    RCSTAbits.SPEN = true;  // Enable serial port. (Configures RX and TX pins as serial port pins)
+    TXSTAbits.SYNC = false; // Asynchronous mode.
+    RCSTAbits.CREN = true;  // Enable receive.
+    TXSTAbits.TXEN = true;  // Enable transmit.
+
     // Configure interrupts.
     INTCONbits.PEIE = true;  // Enable peripheral interrupts.
     INTCONbits.GIE = true;   // Enable interrupts.
@@ -345,5 +360,15 @@ void __interrupt() ISR() {
 
         // Clear interrupt flag.
         TMR4IF = 0;
+    }
+
+    // Handle UART RX interrupts. (Bridge communication).
+    if (RCIF) {
+        // Insert received data into buffer.
+        buffer_data[i_write] = RCREG;
+        i_write += 1;
+        if (i_write >= BRIDGE_UART_BUFFER_SIZE) {
+            i_write = 0;
+        }
     }
 }
