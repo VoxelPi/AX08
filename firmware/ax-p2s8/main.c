@@ -23,7 +23,7 @@
 
 #define _XTAL_FREQ 32000000
 
-/* 
+/*
     PIN MAPPING
     RA0 - RA3: [INPUT] input bits 0..3
     RB4 - RB7: [INPUT] input bits 4..7
@@ -31,20 +31,6 @@
 
     UNUSED: RA4 - RA7, RB0, RB2, RB3
 */
-
-typedef union {
-    struct {
-        unsigned bit0 :1;
-        unsigned bit1 :1;
-        unsigned bit2 :1;
-        unsigned bit3 :1;
-        unsigned bit4 :1;
-        unsigned bit5 :1;
-        unsigned bit6 :1;
-        unsigned bit7 :1;
-    };
-    unsigned byte :8;
-} bitwise_byte_t;
 
 int main() {
 
@@ -60,7 +46,7 @@ int main() {
     ANSELA = 0b00000000;
     WPUA   = 0b00000000;
     TRISA  = 0b11111111;
-    
+
     // Initialize B pins.
     PORTB  = 0b00000000;
     LATB   = 0b00000000;
@@ -77,28 +63,17 @@ int main() {
     // Configure UART.
     RCSTAbits.SPEN = 1; // Serial port enabled. (Configures RX and TX pins as serial port pins)
     TXSTAbits.SYNC = 0; // Asynchronous mode.
-    TXSTAbits.TXEN = 1;
+    TXSTAbits.TXEN = 1; // Enable transmit.
 
     // Main loop
     uint8_t current_state = 0;
     while (true) {
-        // Wait for the previous state to be send.
-        // while (!TXIF)
-        //     ;
-
         // Wait for a state change.
-        bitwise_byte_t data = { .byte = current_state };
-        while (data.byte == current_state) {
-            data.bit0 = RA0;
-            data.bit1 = RA1;
-            data.bit2 = RA2;
-            data.bit3 = RA3;
-            data.bit4 = RB4;
-            data.bit5 = RB5;
-            data.bit6 = RB6;
-            data.bit7 = RB7;
+        uint8_t state = current_state;
+        while (state == current_state) {
+            state = (PORTA & 0x0F) | (PORTB & 0xF0);
         }
-        current_state = data.byte;
+        current_state = state;
 
         // Send the new state.
         TXREG = current_state;

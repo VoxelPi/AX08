@@ -19,6 +19,7 @@
 
 #include <xc.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #define _XTAL_FREQ 32000000
 
@@ -27,23 +28,10 @@
     RA0 - RA3: [OUTPUT] output bits 0..3
     RB4 - RB7: [OUTPUT] output bits 4..7
     RB1:       [INPUT]  UART RX
+    RB2:       [OUTPUT] UART TX
 
-    UNUSED: RA4 - RA7, RB0, RB2, RB3
+    UNUSED: RA4 - RA7, RB0, RB3
 */
-
-typedef union {
-    struct {
-        unsigned bit0 :1;
-        unsigned bit1 :1;
-        unsigned bit2 :1;
-        unsigned bit3 :1;
-        unsigned bit4 :1;
-        unsigned bit5 :1;
-        unsigned bit6 :1;
-        unsigned bit7 :1;
-    };
-    unsigned byte :8;
-} bitwise_byte_t;
 
 int main() {
 
@@ -92,17 +80,16 @@ int main() {
 void __interrupt() ISR() {
     // Check receive interrupt.
     if (RCIF) {
-        bitwise_byte_t data;
-        data.byte = RCREG;
-        TXREG = data.byte; // ECHO received byte.
+        // Get received data.
+        uint8_t data = RCREG;
 
-        RA0 = data.bit0;
-        RA1 = data.bit1;
-        RA2 = data.bit2;
-        RA3 = data.bit3;
-        RB4 = data.bit4;
-        RB5 = data.bit5;
-        RB6 = data.bit6;
-        RB7 = data.bit7;
+        // Echo received data.
+        TXREG = data;
+
+        // Update output pins.
+        LATA &= (data | 0xF0);
+        LATA |= (data & 0x0F);
+        LATB &= (data | 0x0F);
+        LATB |= (data & 0xF0);
     }
 }
