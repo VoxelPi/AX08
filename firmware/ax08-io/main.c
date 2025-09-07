@@ -31,7 +31,7 @@
 // RA2: [I/O]    DATA.2
 // RA3: [I/O]    DATA.3
 // RA4: [INPUT]  HOLD
-// RA5: [INPUT]  CTS  
+// RA5: [INPUT]  CTS
 // RA6: [OUTPUT] RTS
 // RA7: [INPUT]  OPCODE POLL
 // RB0: [INPUT]  OPCODE READ
@@ -86,38 +86,14 @@ void send_string(const char* message) {
 }
 
 uint8_t read_word() {
-    // bitwise_byte_t data = {
-    //     .bit0 = RA0,
-    //     .bit1 = RA1,
-    //     .bit2 = RA2,
-    //     .bit3 = RA3,
-    //     .bit4 = RB4,
-    //     .bit5 = RB5,
-    //     .bit6 = RB6,
-    //     .bit7 = RB7,
-    // };
-    bitwise_byte_t data;
-    data.bit0 = RA0;
-    data.bit1 = RA1;
-    data.bit2 = RA2;
-    data.bit3 = RA3;
-    data.bit4 = RB4;
-    data.bit5 = RB5;
-    data.bit6 = RB6;
-    data.bit7 = RB7;
-    return data.byte;
+    return (PORTA & 0x0F) | (PORTB & 0xF0);
 }
 
 void write_word(const uint8_t word) {
-    bitwise_byte_t data = { .byte = word };
-    RA0 = data.bit0;
-    RA1 = data.bit1;
-    RA2 = data.bit2;
-    RA3 = data.bit3;
-    RB4 = data.bit4;
-    RB5 = data.bit5;
-    RB6 = data.bit6;
-    RB7 = data.bit7;
+    LATA &= (word | 0xF0);
+    LATA |= (word & 0x0F);
+    LATB &= (word | 0x0F);
+    LATB |= (word & 0xF0);
 }
 
 int main() {
@@ -134,7 +110,7 @@ int main() {
     ANSELA = 0b00000000;
     WPUA   = 0b00000000;
     TRISA  = 0b10111111;
-    
+
     // Initialize B pins.
     PORTB  = 0b00000000;
     LATB   = 0b00000000;
