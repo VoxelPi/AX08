@@ -76,11 +76,13 @@ typedef enum ax08_seq_state {
     AX08_SEQ_STATE_RUN,             // The sequencer is running.
 } ax08_seq_state_t;
 
+bool enabled = true;
 bool debug_mode = true;                      // If the sequencer is currently in debug mode.
 ax08_seq_state_t state = AX08_SEQ_STATE_RUN; // The current state.
 uint8_t cycle_state = 0;                     // A number in [0, 5], representing the current cycle state.
 bool state_changed = true;                   // If a new state is available to be processed by the main loop.
 bool previous_break_state = false;           // Previous state of the break pin.
+bool reset_scheduled = false;
 
 /*
     Variables related to user input.
@@ -149,12 +151,17 @@ void ax08_seq_handle_input(uint8_t input_state) {
 
     // Handle events.
     if (input_debug_mode) {
-        // Toggle debug mode.
-        debug_mode = !debug_mode;
-        if (debug_mode) {
-            state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+        if (enabled) {
+            // Toggle debug mode.
+            debug_mode = !debug_mode;
+            if (debug_mode) {
+                state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+            } else {
+                state = AX08_SEQ_STATE_RUN;
+            }
         } else {
-            state = AX08_SEQ_STATE_RUN;
+            // Schedule reset
+            reset_scheduled = true;
         }
     }
     if (input_run_step) {
@@ -283,6 +290,9 @@ int main() {
     INTCONbits.PEIE = true;  // Enable peripheral interrupts.
     INTCONbits.GIE = true;   // Enable interrupts.
 
+    // Schedule a state reset.
+    reset_scheduled = true;
+
     /**
         Main loop
     */
@@ -303,17 +313,40 @@ int main() {
         }
         previous_break_state = PIN_BREAK;
 
-        // Check if the sequencer is currently enabled.
-        if (!PIN_ENABLE) {
-            // Sequencer is not enabled. Disable all outputs and reset cycle state.
-            LATB &= 0b00000100;
-            cycle_state = 0;
-            continue;
+        // Check if sequencer was enabled / disabled.
+        if (PIN_ENABLE != enabled) {
+            enabled = PIN_ENABLE;
+
+            if (!enabled) {
+                // Sequencer was disabled.
+                reset_scheduled = true;
+
+                // Reset state.
+                LATB &= 0b00000100;
+                debug_mode = true;
+                cycle_state = 0;
+            }
         }
 
         // Handle timer post scale.
         if (unscaled_time >= STATE_TIMER_PS[i_selected_postscaler]) {
             unscaled_time = 0;
+
+            // Handle reset.
+            if (reset_scheduled) {
+                reset_scheduled = false;
+
+                // Write reset state.
+                LATB &= 0b00000100;
+                PIN_STORE_PC = true;
+                continue;
+            }
+
+            // Handle disabled sequencer.
+            if (!enabled) {
+                LATB &= 0b00000100;
+                continue;
+            }
 
             // Handle state updates.
             switch (state) {
