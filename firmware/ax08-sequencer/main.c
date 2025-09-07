@@ -143,7 +143,7 @@ void ax08_seq_handle_input(uint8_t input_state) {
 
     // Check inputs.
     bool input_debug_mode      = (input_events & 0b00000010) != 0;
-    bool input_run_cycle       = (input_events & 0b00000100) != 0;
+    bool input_run_step        = (input_events & 0b00000100) != 0;
     bool input_run_instruction = (input_events & 0b00001000) != 0;
     bool input_change_speed    = (input_events & 0b00010000) != 0;
 
@@ -157,7 +157,7 @@ void ax08_seq_handle_input(uint8_t input_state) {
             state = AX08_SEQ_STATE_RUN;
         }
     }
-    if (input_run_cycle) {
+    if (input_run_step) {
         // Enable debug mode if not already active,
         // and configure the statemachine to execute exactly one step.
         debug_mode = true;
