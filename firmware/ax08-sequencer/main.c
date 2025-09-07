@@ -208,13 +208,20 @@ void ax08_seq_run_step() {
         case 5:
             PIN_STORE_OUTPUT = true;
             break;
+        case 6: // Reset mode.
+            PIN_FREEZE_WORD = false;
+            PIN_FREEZE_OPCODE = false;
+            PIN_HOLD_OUTPUT = false;
+            PIN_INCREMENT_PC = false;
+            PIN_STORE_PC = false;
+            PIN_STORE_OUTPUT = false;
         default:
             break;
     }
 
     // Increment cycle state.
     cycle_state += 1;
-    if (cycle_state >= 6) {
+    if (cycle_state >= 7) {
         cycle_state = 0;
     }
 }
@@ -330,6 +337,11 @@ int main() {
                     break;
 
                 case AX08_SEQ_STATE_RUN:
+                    // Skip reset step in run state.
+                    if (cycle_state == 6) {
+                        cycle_state = 0;
+                    }
+
                     // Run a single step.
                     ax08_seq_run_step();
                     break;
