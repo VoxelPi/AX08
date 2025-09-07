@@ -233,6 +233,59 @@ void ax08_seq_run_step() {
     }
 }
 
+/**
+    Performs a sequencer state update.
+*/
+void ax08_seq_update_state() {
+    // Handle reset.
+    if (reset_scheduled) {
+        reset_scheduled = false;
+
+        // Write reset state.
+        LATB &= 0b00000100;
+        PIN_STORE_PC = true;
+        return; // Skip remaining handler.
+    }
+
+    // Handle disabled sequencer.
+    if (!enabled) {
+        LATB &= 0b00000100;
+        return; // Skip remaining handler.
+    }
+
+    // Handle state updates.
+    switch (state) {
+        case AX08_SEQ_STATE_IDLE:
+            // Do nothing.
+            break;
+
+        case AX08_SEQ_STATE_RUN_STEP:
+            // Run a sigle step and change state to idle.
+            ax08_seq_run_step();
+            state = AX08_SEQ_STATE_IDLE;
+            break;
+
+        case AX08_SEQ_STATE_RUN_INSTRUCTION:
+            // Run a single step. If that finishes an instruction (= new cycle state is 0),
+            // change the state to idle.
+            ax08_seq_run_step();
+            if (cycle_state == 0) {
+                state = AX08_SEQ_STATE_IDLE;
+            }
+            break;
+
+        case AX08_SEQ_STATE_RUN:
+            // Skip reset step in run state.
+            if (cycle_state == 6) {
+                cycle_state = 0;
+            }
+
+            // Run a single step.
+            ax08_seq_run_step();
+            break;
+    }
+}
+
 #pragma region Main Function
 
 /**
@@ -332,53 +385,8 @@ int main() {
         if (unscaled_time >= STATE_TIMER_PS[i_selected_postscaler]) {
             unscaled_time = 0;
 
-            // Handle reset.
-            if (reset_scheduled) {
-                reset_scheduled = false;
-
-                // Write reset state.
-                LATB &= 0b00000100;
-                PIN_STORE_PC = true;
-                continue;
-            }
-
-            // Handle disabled sequencer.
-            if (!enabled) {
-                LATB &= 0b00000100;
-                continue;
-            }
-
-            // Handle state updates.
-            switch (state) {
-                case AX08_SEQ_STATE_IDLE:
-                    // Do nothing.
-                    break;
-
-                case AX08_SEQ_STATE_RUN_STEP:
-                    // Run a sigle step and change state to idle.
-                    ax08_seq_run_step();
-                    state = AX08_SEQ_STATE_IDLE;
-                    break;
-
-                case AX08_SEQ_STATE_RUN_INSTRUCTION:
-                    // Run a single step. If that finishes an instruction (= new cycle state is 0),
-                    // change the state to idle.
-                    ax08_seq_run_step();
-                    if (cycle_state == 0) {
-                        state = AX08_SEQ_STATE_IDLE;
-                    }
-                    break;
-
-                case AX08_SEQ_STATE_RUN:
-                    // Skip reset step in run state.
-                    if (cycle_state == 6) {
-                        cycle_state = 0;
-                    }
-
-                    // Run a single step.
-                    ax08_seq_run_step();
-                    break;
-            }
+            // Update the sequencer state.
+            ax08_seq_update_state();
         }
     }
 }
