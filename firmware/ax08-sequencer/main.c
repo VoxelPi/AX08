@@ -23,36 +23,208 @@
 
 #define _XTAL_FREQ 32000000
 
-#define BASE_DELAY 500
-#define MS_DELAY_LONG 500
-
+#pragma region Pin Definition
 /*
     PIN MAPPING:
-        RA5 - RA7: unused (in)
-        RA0: MODE (in)
-        RA1: ACTION (in)
-        RA2: CYCLE (in)
-        RA3: STEP (in)
-        RA4: DELAY1 (in)
 
-        RB1, RB2: UART RX (in), UART TX (out)
-        RB0: PC_SOURCE_INC (out)
-        RB3: FREEZE_WRD (out)
-        RB4: FREEZE_OP (out)
-        RB5: HOLD (out)
-        RB6: AD_RGSET_OVERRIDE (out)
-        RB7: STORE (out)
+    RA0, IN:  MODE              (active high)
+    RA1, IN:  toggle debug mode (button, active low)
+    RA2, IN:  run step          (button, active low)
+    RA3, IN:  run instruction   (button, active low)
+    RA4, IN:  cycle clock speed (button, active low)
+    RA5, IN:  UART CTS          (currently unused)
+    RA6, OUT: UART RTS          (currently unused)
+    RA7, IN:  BREAK             (active low)
+
+    RB0, OUT: state PC_SOURCE_INC
+    RB1, IN:  UART RX
+    RB2, OUT: UART TX
+    RB3, OUT: state FREEZE_WRD
+    RB4, OUT: state FREEZE_OP
+    RB5, OUT: state HOLD
+    RB6, OUT: state AD_RGSET_OVERRIDE
+    RB7, OUT: state STORE
 */
+#define PIN_FREEZE_WORD LATB3
+#define PIN_FREEZE_OPCODE LATB4
+#define PIN_HOLD_OUTPUT LATB5
+#define PIN_INCREMENT_PC LATB0
+#define PIN_STORE_PC LATB6
+#define PIN_STORE_OUTPUT LATB7
 
-void stepdelay() {
-    __delay_us(BASE_DELAY);
-    if ((PORTA & 0b00010000) == 0) { //DEALY1 check
-        __delay_ms(MS_DELAY_LONG);
+#define PIN_BREAK RA7
+#define PIN_ENABLE RA0
+
+#pragma region Global State
+
+/*
+    Variables related to the clock speed.
+*/
+#define STATE_TIMER_PERIOD 50                                                        // Timer2 period in µs
+const uint16_t STATE_TIMER_PS[] = { 5, 200, 20000 };                     // Clock postscalers.
+const uint8_t N_STATE_TIMER_PS = sizeof(STATE_TIMER_PS) / sizeof(STATE_TIMER_PS[0]); // Number of post scalers.
+uint8_t i_selected_postscaler = 0;                                                   // The selected postscaler.
+volatile uint16_t unscaled_time = 0;                                                 // The unscaled time
+
+/*
+    Variables related to the state machine.
+*/
+typedef enum ax08_seq_state {
+    AX08_SEQ_STATE_IDLE,            // The sequencer is waiting for further instructions.
+    AX08_SEQ_STATE_RUN_STEP,        // The sequencer is running one step.
+    AX08_SEQ_STATE_RUN_INSTRUCTION, // The sequencer is running one instruction.
+    AX08_SEQ_STATE_RUN,             // The sequencer is running.
+} ax08_seq_state_t;
+
+bool debug_mode = true;                      // If the sequencer is currently in debug mode.
+ax08_seq_state_t state = AX08_SEQ_STATE_RUN; // The current state.
+uint8_t cycle_state = 0;                     // A number in [0, 5], representing the current cycle state.
+bool state_changed = true;                   // If a new state is available to be processed by the main loop.
+bool previous_break_state = false;           // Previous state of the break pin.
+
+/*
+    Variables related to user input.
+*/
+#define INPUT_BUFFER_SIZE 4
+#define INPUT_MASK 0b00011110
+uint8_t input_buffer[INPUT_BUFFER_SIZE];
+uint8_t i_next_input_state = 0;
+uint8_t previous_input_state = INPUT_MASK;
+volatile bool poll_input = true;
+
+/**
+    Variables related to the UART bridge link.
+*/
+#define BRIDGE_UART_BUFFER_SIZE 32                  // The size of the receive buffer.
+volatile char buffer_data[BRIDGE_UART_BUFFER_SIZE]; // The receive buffer.
+uint16_t i_read;                                    // The location of the read pointer.
+volatile uint16_t i_write;                          // The location of the write pointer.
+
+#pragma region Library Functions
+
+/**
+    Pushes the current input state into the buffer,
+    and generates the new stabalized input state from the buffer entries.
+
+    @return The current stabalized input state.
+*/
+uint8_t ax08_seq_poll_input() {
+    // Insert new value into input buffer.
+    input_buffer[i_next_input_state] = PORTA;
+    i_next_input_state += 1;
+    if (i_next_input_state >= INPUT_BUFFER_SIZE) {
+        i_next_input_state = 0;
     }
-    return;
+
+    // Calculate the new input state.
+    uint8_t input_state = INPUT_MASK;
+    for (uint8_t i = 0; i < INPUT_BUFFER_SIZE; ++i) {
+        input_state &= input_buffer[i];
+    }
+
+    // Return the new input state.
+    return input_state;
 }
 
-void main() {
+/**
+    Update the statemachine using the nw input state.
+
+    @param input_state The new input state.
+*/
+void ax08_seq_handle_input(uint8_t input_state) {
+    // Check for changes in the input state.
+    if (previous_input_state == input_state) {
+        return;
+    }
+
+    // Calculate the input event mask. A 1 bit represents a falling edge in that bit.
+    uint8_t input_events = (input_state ^ previous_input_state) & previous_input_state;
+    previous_input_state = input_state;
+
+    // Check inputs.
+    bool input_debug_mode      = (input_events & 0b00000010) != 0;
+    bool input_run_cycle       = (input_events & 0b00000100) != 0;
+    bool input_run_instruction = (input_events & 0b00001000) != 0;
+    bool input_change_speed    = (input_events & 0b00010000) != 0;
+
+    // Handle events.
+    if (input_debug_mode) {
+        // Toggle debug mode.
+        debug_mode = !debug_mode;
+        if (debug_mode) {
+            state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+        } else {
+            state = AX08_SEQ_STATE_RUN;
+        }
+    }
+    if (input_run_cycle) {
+        // Enable debug mode if not already active,
+        // and configure the statemachine to execute exactly one step.
+        debug_mode = true;
+        state = AX08_SEQ_STATE_RUN_STEP;
+    }
+    if (input_run_instruction) {
+        // Enable debug mode if not already active,
+        // and configure the statemachine to execute exactly one instruction.
+        debug_mode = true;
+        state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+    }
+    if (input_change_speed) {
+        // Cycle state timer post scaler.
+        i_selected_postscaler += 1;
+        if (i_selected_postscaler >= N_STATE_TIMER_PS) {
+            i_selected_postscaler = 0;
+        }
+    }
+}
+
+/**
+    Runs a single cycle step.
+*/
+void ax08_seq_run_step() {
+    // Execute next cycle step.
+    switch (cycle_state) {
+        case 0:
+            PIN_STORE_OUTPUT = false;
+            PIN_FREEZE_WORD = true;
+            break;
+        case 1:
+            PIN_FREEZE_WORD = false;
+            PIN_FREEZE_OPCODE = true;
+            break;
+        case 2:
+            PIN_FREEZE_OPCODE = false;
+            PIN_HOLD_OUTPUT = true;
+            PIN_INCREMENT_PC = true;
+            break;
+        case 3:
+            PIN_HOLD_OUTPUT = false;
+            PIN_STORE_PC = true;
+            break;
+        case 4:
+            PIN_INCREMENT_PC = false;
+            PIN_STORE_PC = false;
+            break;
+        case 5:
+            PIN_STORE_OUTPUT = true;
+            break;
+        default:
+            break;
+    }
+
+    // Increment cycle state.
+    cycle_state += 1;
+    if (cycle_state >= 6) {
+        cycle_state = 0;
+    }
+}
+
+#pragma region Main Function
+
+/**
+    Main loop.
+*/
+int main() {
 
     // Setup the system clock.
     OSCCONbits.SPLLEN = 1;    // Enable 4x PLL.
@@ -65,7 +237,7 @@ void main() {
     LATA   = 0b00000000;
     ANSELA = 0b00000000;
     WPUA   = 0b00000000;
-    TRISA  = 0b11111111;
+    TRISA  = 0b10111111;
 
     // Initialize B pins.
     PORTB  = 0b00000000;
@@ -74,259 +246,129 @@ void main() {
     WPUB   = 0b00000000;
     TRISB  = 0b00000010;
 
-    uint8_t state = 0;
-    uint8_t prev_mode = 0;
+    // Initialize input buffer.
+    for (uint8_t i = 0; i < INPUT_BUFFER_SIZE; ++i) {
+        input_buffer[i] = INPUT_MASK;
+    }
 
-    __delay_ms(500);
-    RB6 = 1;
-    __delay_ms(1);
-    RB6 = 0;
-    __delay_ms(10);
-    RB6 = 1;
-    __delay_ms(1);
-    RB6 = 0;
-    __delay_ms(100);
+    // Configure timer2 (state timer)
+    PIE1bits.TMR2IE = true;       // Enable match interrupts.
+    PR2 = STATE_TIMER_PERIOD - 1; // Configure timer period.
+    T2CONbits.T2OUTPS = 0b0111;   // Use a postscaler of 1:8
+    T2CONbits.T2CKPS = 0b00;      // Use a prescaler of 1:1
+    T2CONbits.TMR2ON = true;      // Enable the timer.
 
-    // Main loop
+    // Configure timer4 (input timer) (This config results in an input poll every ~5ms)
+    PIE3bits.TMR4IE = true;       // Enable match interrupts.
+    PR4 = 39;                     // Configure timer period.
+    T4CONbits.T4OUTPS = 0b1111;   // Use a postscaler of 1:16
+    T4CONbits.T4CKPS = 0b11;      // Use a prescaler of 1:64
+    T4CONbits.TMR4ON = true;      // Enable the timer.
+
+    // Configure UART
+    PIE1bits.RCIE = true;   // Enable UART RX interrupts.
+    RCSTAbits.SPEN = true;  // Enable serial port. (Configures RX and TX pins as serial port pins)
+    TXSTAbits.SYNC = false; // Asynchronous mode.
+    RCSTAbits.CREN = true;  // Enable receive.
+    TXSTAbits.TXEN = true;  // Enable transmit.
+
+    // Configure interrupts.
+    INTCONbits.PEIE = true;  // Enable peripheral interrupts.
+    INTCONbits.GIE = true;   // Enable interrupts.
+
+    /**
+        Main loop
+    */
     while (true) {
-        if ((PORTA & 0b00000001) == 0) { // MODE check
-            LATB = LATB & 0b00000100;
-            state = 0;
+        // Hande input poll event.
+        if (poll_input) {
+            poll_input = false;
 
-            if ((PORTA & 0b00000010) == 0) { // ACTION button check
-                __delay_ms(50);
-                if ((PORTA & 0b00000010) != 0) goto act0_end;
-                while ((PORTA & 0b00000010) == 0);
-                __delay_ms(50);
-                if ((PORTA & 0b00000010) == 0) goto act0_end;
-
-                RB6 = 1;
-                __delay_ms(1);
-                RB6 = 0;
-                __delay_ms(10);
-            }
-            act0_end:
-
-            prev_mode = 0;
+            // Poll and handle input.
+            uint8_t input_state = ax08_seq_poll_input();
+            ax08_seq_handle_input(input_state);
         }
-        else {
-            if ((PORTA & 0b10000000) == 0) { // BREAK check
-                __delay_ms(50);
-                if ((PORTA & 0b10000000) != 0) goto brk0_end;
 
-                state = 0;
-                __delay_ms(100);
-            }
-            brk0_end:
+        // Check for a break instruction
+        if (!debug_mode && !PIN_BREAK && (previous_break_state != PIN_BREAK)) {
+            debug_mode = true;
+            state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+        }
+        previous_break_state = PIN_BREAK;
 
-            if (prev_mode == 0) {
-                __delay_ms(500);
-                prev_mode = 1;
-            }
+        // Check if the sequencer is currently enabled.
+        if (!PIN_ENABLE) {
+            // Sequencer is not enabled. Disable all outputs and reset cycle state.
+            LATB &= 0b00000100;
+            cycle_state = 0;
+            continue;
+        }
 
-            if (state == 0) {
-                stpmode_start:
-                if ((PORTA & 0b00000010) == 0) { // ACTION button check
-                    __delay_ms(50);
-                    if ((PORTA & 0b00000010) != 0) goto stpmode_start;
-                    while ((PORTA & 0b00000010) == 0);
-                    __delay_ms(50);
-                    if ((PORTA & 0b00000010) == 0) goto stpmode_start;
+        // Handle timer post scale.
+        if (unscaled_time >= STATE_TIMER_PS[i_selected_postscaler]) {
+            unscaled_time = 0;
 
-                    state = 1;
-                }
-                else if ((PORTA & 0b00000100) == 0) { // CYCLE button check
-                    __delay_ms(50);
-                    if ((PORTA & 0b00000100) != 0) goto stpmode_start;
-                    while ((PORTA & 0b00000100) == 0);
-                    __delay_ms(50);
-                    if ((PORTA & 0b00000100) == 0) goto stpmode_start;
+            // Handle state updates.
+            switch (state) {
+                case AX08_SEQ_STATE_IDLE:
+                    // Do nothing.
+                    break;
 
-                    state = 2;
-                }
-                else if ((PORTA & 0b00001000) == 0) { // STEP button check
-                    __delay_ms(50);
-                    if ((PORTA & 0b00001000) != 0) goto stpmode_start;
-                    while ((PORTA & 0b00001000) == 0);
-                    __delay_ms(50);
-                    if ((PORTA & 0b00001000) == 0) goto stpmode_start;
+                case AX08_SEQ_STATE_RUN_STEP:
+                    // Run a sigle step and change state to idle.
+                    ax08_seq_run_step();
+                    state = AX08_SEQ_STATE_IDLE;
+                    break;
 
-                    state = 3;
-                }
-            }
-            else if (state == 1) {
-                LATB = LATB & 0b00000100;
-
-                LATB = LATB | 0b00001000;
-                stepdelay();
-
-                LATB = LATB & 0b00000100;
-                LATB = LATB | 0b00010000;
-                stepdelay();
-
-                LATB = LATB & 0b00000100;
-                LATB = LATB | 0b00100001;
-                stepdelay();
-
-                LATB = LATB & 0b00000101;
-                LATB = LATB | 0b01000000;
-                stepdelay();
-
-                LATB = LATB & 0b00000100;
-                stepdelay();
-
-                LATB = LATB | 0b10000000;
-                stepdelay();
-
-                act1_start:
-                if ((PORTA & 0b00000010) == 0) { // ACTION button check
-                    __delay_ms(50);
-                    if ((PORTA & 0b00000010) != 0) goto act1_start;
-                    while ((PORTA & 0b00000010) == 0);
-                    __delay_ms(50);
-                    if ((PORTA & 0b00000010) == 0) goto act1_start;
-
-                    state = 0;
-                }
-
-                LATB = LATB & 0b00000100;
-            }
-            else if (state == 2) {
-                LATB = LATB & 0b00000100;
-
-                LATB = LATB | 0b00001000;
-                stepdelay();
-
-                LATB = LATB & 0b00000100;
-                LATB = LATB | 0b00010000;
-                stepdelay();
-
-                LATB = LATB & 0b00000100;
-                LATB = LATB | 0b00100001;
-                stepdelay();
-
-                LATB = LATB & 0b00000101;
-                LATB = LATB | 0b01000000;
-                stepdelay();
-
-                LATB = LATB & 0b00000100;
-                stepdelay();
-
-                LATB = LATB | 0b10000000;
-                stepdelay();
-
-                LATB = LATB & 0b00000100;
-
-                state = 0;
-            }
-            else if (state == 3) {
-                LATB = LATB & 0b00000100;
-
-                LATB = LATB | 0b00001000;
-                __delay_us(BASE_DELAY);
-
-                uint8_t loopvar = 0;
-                while (loopvar == 0) {
-                    if ((PORTA & 0b00001000) == 0) { // STEP button check
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) != 0) continue;
-                        while ((PORTA & 0b00001000) == 0);
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) == 0) continue;
-
-                        loopvar = 1;
+                case AX08_SEQ_STATE_RUN_INSTRUCTION:
+                    // Run a single step. If that finishes an instruction (= new cycle state is 0),
+                    // change the state to idle.
+                    ax08_seq_run_step();
+                    if (cycle_state == 0) {
+                        state = AX08_SEQ_STATE_IDLE;
                     }
-                }
+                    break;
 
-                LATB = LATB & 0b00000100;
-                LATB = LATB | 0b00010000;
-                __delay_us(BASE_DELAY);
-
-                loopvar = 0;
-                while (loopvar == 0) {
-                    if ((PORTA & 0b00001000) == 0) { // STEP button check
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) != 0) continue;
-                        while ((PORTA & 0b00001000) == 0);
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) == 0) continue;
-
-                        loopvar = 1;
-                    }
-                }
-
-                LATB = LATB & 0b00000100;
-                LATB = LATB | 0b00100001;
-                __delay_us(BASE_DELAY);
-
-                loopvar = 0;
-                while (loopvar == 0) {
-                    if ((PORTA & 0b00001000) == 0) { // STEP button check
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) != 0) continue;
-                        while ((PORTA & 0b00001000) == 0);
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) == 0) continue;
-
-                        loopvar = 1;
-                    }
-                }
-
-                LATB = LATB & 0b00000101;
-                LATB = LATB | 0b01000000;
-                __delay_us(BASE_DELAY);
-
-                loopvar = 0;
-                while (loopvar == 0) {
-                    if ((PORTA & 0b00001000) == 0) { // STEP button check
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) != 0) continue;
-                        while ((PORTA & 0b00001000) == 0);
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) == 0) continue;
-
-                        loopvar = 1;
-                    }
-                }
-
-                LATB = LATB & 0b00000100;
-                __delay_us(BASE_DELAY);
-
-                loopvar = 0;
-                while (loopvar == 0) {
-                    if ((PORTA & 0b00001000) == 0) { // STEP button check
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) != 0) continue;
-                        while ((PORTA & 0b00001000) == 0);
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) == 0) continue;
-
-                        loopvar = 1;
-                    }
-                }
-
-                LATB = LATB | 0b10000000;
-                __delay_us(BASE_DELAY);
-
-                loopvar = 0;
-                while (loopvar == 0) {
-                    if ((PORTA & 0b00001000) == 0) { // STEP button check
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) != 0) continue;
-                        while ((PORTA & 0b00001000) == 0);
-                        __delay_ms(50);
-                        if ((PORTA & 0b00001000) == 0) continue;
-
-                        loopvar = 1;
-                    }
-                }
-
-                LATB = LATB & 0b00000100;
-                state = 0;
+                case AX08_SEQ_STATE_RUN:
+                    // Run a single step.
+                    ax08_seq_run_step();
+                    break;
             }
-            else {
-                //debug
-            }
+        }
+    }
+}
+
+#pragma region Interrupts
+
+/**
+    Interrupt service routine.
+*/
+void __interrupt() ISR() {
+    // Handle timer2 match interrupt. (State timer).
+    if (TMR2IF) {
+        // Increment time.
+        unscaled_time += 1;
+
+        // Clear interrupt flag.
+        TMR2IF = 0;
+    }
+
+    // Handle timer4 match interrupt. (Input timer).
+    if (TMR4IF) {
+        // Mark new input to be polled.
+        poll_input = true;
+
+        // Clear interrupt flag.
+        TMR4IF = 0;
+    }
+
+    // Handle UART RX interrupts. (Bridge communication).
+    if (RCIF) {
+        // Insert received data into buffer.
+        buffer_data[i_write] = RCREG;
+        i_write += 1;
+        if (i_write >= BRIDGE_UART_BUFFER_SIZE) {
+            i_write = 0;
         }
     }
 }
