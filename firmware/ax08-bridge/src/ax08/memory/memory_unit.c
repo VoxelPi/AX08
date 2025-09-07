@@ -168,7 +168,7 @@ void ax08_memory_core1_entry() {
         // Update data word.
         uint8_t data_word = memory_data[data_address_word.word];
         if (data_word != previous_data_word) {
-            pio_sm_put(pio1, 1, data_word);
+            pio_sm_put(pio2, 1, data_word);
             previous_data_word = data_word;
         }
 
