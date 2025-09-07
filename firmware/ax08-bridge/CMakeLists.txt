@@ -63,7 +63,7 @@ pico_generate_pio_header(ax08-bridge ${CMAKE_CURRENT_LIST_DIR}/src/uart_tx.pio)
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(ax08-bridge 0)
-pico_enable_stdio_usb(ax08-bridge 1)
+pico_enable_stdio_usb(ax08-bridge 0)
 
 # Add the standard library to the build
 target_link_libraries(ax08-bridge
