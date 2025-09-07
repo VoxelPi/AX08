@@ -60,8 +60,8 @@
 /*
     Variables related to the clock speed.
 */
-#define STATE_TIMER_PERIOD 50                                                        // Timer2 period in µs
-const uint16_t STATE_TIMER_PS[] = { 5, 200, 20000 };                     // Clock postscalers.
+#define STATE_TIMER_PERIOD 17                                                        // Timer2 period in µs
+const uint16_t STATE_TIMER_PS[] = { 1, 100, 10000 };                     // Clock postscalers.
 const uint8_t N_STATE_TIMER_PS = sizeof(STATE_TIMER_PS) / sizeof(STATE_TIMER_PS[0]); // Number of post scalers.
 uint8_t i_selected_postscaler = 0;                                                   // The selected postscaler.
 volatile uint16_t unscaled_time = 0;                                                 // The unscaled time
