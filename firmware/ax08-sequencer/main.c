@@ -76,7 +76,7 @@ typedef enum ax08_seq_state {
     AX08_SEQ_STATE_RUN,             // The sequencer is running.
 } ax08_seq_state_t;
 
-bool debug_mode = false;                     // If the sequencer is currently in debug mode.
+bool debug_mode = true;                      // If the sequencer is currently in debug mode.
 ax08_seq_state_t state = AX08_SEQ_STATE_RUN; // The current state.
 uint8_t cycle_state = 0;                     // A number in [0, 5], representing the current cycle state.
 bool state_changed = true;                   // If a new state is available to be processed by the main loop.
@@ -152,7 +152,7 @@ void ax08_seq_handle_input(uint8_t input_state) {
         // Toggle debug mode.
         debug_mode = !debug_mode;
         if (debug_mode) {
-            state = AX08_SEQ_STATE_IDLE;
+            state = AX08_SEQ_STATE_RUN_INSTRUCTION;
         } else {
             state = AX08_SEQ_STATE_RUN;
         }
@@ -292,7 +292,7 @@ int main() {
         // Check for a break instruction
         if (!debug_mode && !PIN_BREAK && (previous_break_state != PIN_BREAK)) {
             debug_mode = true;
-            state = AX08_SEQ_STATE_IDLE;
+            state = AX08_SEQ_STATE_RUN_INSTRUCTION;
         }
         previous_break_state = PIN_BREAK;
 
