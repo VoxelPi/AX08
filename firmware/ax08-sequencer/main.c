@@ -75,19 +75,18 @@ volatile uint16_t unscaled_time = 0;                                            
     Variables related to the state machine.
 */
 typedef enum ax08_seq_state {
-    AX08_SEQ_STATE_IDLE,            // The sequencer is waiting for further instructions.
-    AX08_SEQ_STATE_RUN_STEP,        // The sequencer is running one step.
-    AX08_SEQ_STATE_RUN_INSTRUCTION, // The sequencer is running one instruction.
-    AX08_SEQ_STATE_RUN,             // The sequencer is running.
+    AX08_SEQ_STATE_RUN = 0,             // The sequencer is running.
+    AX08_SEQ_STATE_RUN_STEP = 1,        // The sequencer is running one step.
+    AX08_SEQ_STATE_RUN_INSTRUCTION = 2, // The sequencer is running one instruction.
+    AX08_SEQ_STATE_IDLE = 3,            // The sequencer is waiting for further instructions.
 } ax08_seq_state_t;
 
 bool enabled = false;
-bool debug_mode = true;                      // If the sequencer is currently in debug mode.
-ax08_seq_state_t state = AX08_SEQ_STATE_RUN; // The current state.
-uint8_t cycle_state = 0;                     // A number in [0, 5], representing the current cycle state.
-bool state_changed = true;                   // If a new state is available to be processed by the main loop.
-bool previous_break_state = false;           // Previous state of the break pin.
-bool reset_scheduled = true;                 // Schedule a reset during sequencer initialization.
+ax08_seq_state_t state = AX08_SEQ_STATE_IDLE; // The current state.
+uint8_t cycle_state = 0;                      // A number in [0, 5], representing the current cycle state.
+bool state_changed = true;                    // If a new state is available to be processed by the main loop.
+bool previous_break_state = false;            // Previous state of the break pin.
+bool reset_scheduled = true;                  // Schedule a reset during sequencer initialization.
 
 /*
     Variables related to user input.
@@ -166,14 +165,13 @@ void ax08_seq_handle_input(uint8_t input_state) {
 
         // Reset state.
         LATB &= 0b00000100;
-        debug_mode = true;
+        state = AX08_SEQ_STATE_RUN_INSTRUCTION;
         cycle_state = 0;
     }
     if (input_debug_mode) {
         if (enabled) {
             // Toggle debug mode.
-            debug_mode = !debug_mode;
-            if (debug_mode) {
+            if (state == AX08_SEQ_STATE_RUN) {
                 state = AX08_SEQ_STATE_RUN_INSTRUCTION;
             } else {
                 state = AX08_SEQ_STATE_RUN;
@@ -187,7 +185,6 @@ void ax08_seq_handle_input(uint8_t input_state) {
         // Enable debug mode if not already active,
         // and configure the statemachine to execute exactly one step.
         if (enabled) {
-            debug_mode = true;
             state = AX08_SEQ_STATE_RUN_STEP;
         }
     }
@@ -195,7 +192,6 @@ void ax08_seq_handle_input(uint8_t input_state) {
         // Enable debug mode if not already active,
         // and configure the statemachine to execute exactly one instruction.
         if (enabled) {
-            debug_mode = true;
             state = AX08_SEQ_STATE_RUN_INSTRUCTION;
         }
     }
@@ -230,7 +226,6 @@ void ax08_seq_run_step() {
         case 3:
             // Handle break opcode.
             if (!PIN_BREAK) {
-                debug_mode = true;
                 state = AX08_SEQ_STATE_RUN_INSTRUCTION;
             }
 
