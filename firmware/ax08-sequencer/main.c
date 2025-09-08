@@ -181,14 +181,18 @@ void ax08_seq_handle_input(uint8_t input_state) {
     if (input_run_step) {
         // Enable debug mode if not already active,
         // and configure the statemachine to execute exactly one step.
-        debug_mode = true;
-        state = AX08_SEQ_STATE_RUN_STEP;
+        if (enabled) {
+            debug_mode = true;
+            state = AX08_SEQ_STATE_RUN_STEP;
+        }
     }
     if (input_run_instruction) {
         // Enable debug mode if not already active,
         // and configure the statemachine to execute exactly one instruction.
-        debug_mode = true;
-        state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+        if (enabled) {
+            debug_mode = true;
+            state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+        }
     }
     if (input_change_speed) {
         // Cycle state timer post scaler.
