@@ -88,7 +88,7 @@ bool reset_scheduled = true;                 // Schedule a reset during sequence
     Variables related to user input.
 */
 #define INPUT_BUFFER_SIZE 4
-#define INPUT_MASK 0b00011110
+#define INPUT_MASK 0b00011111
 uint8_t input_buffer[INPUT_BUFFER_SIZE];
 uint8_t i_next_input_state = 0;
 uint8_t previous_input_state = INPUT_MASK;
@@ -140,16 +140,30 @@ void ax08_seq_handle_input(uint8_t input_state) {
     }
 
     // Calculate the input event mask. A 1 bit represents a falling edge in that bit.
-    uint8_t input_events = (input_state ^ previous_input_state) & previous_input_state;
+    uint8_t input_state_change = input_state ^ previous_input_state;
+    uint8_t input_falling_events = input_state_change & previous_input_state;
     previous_input_state = input_state;
 
-    // Check inputs.
-    bool input_debug_mode      = (input_events & 0b00000010) != 0;
-    bool input_run_step        = (input_events & 0b00000100) != 0;
-    bool input_run_instruction = (input_events & 0b00001000) != 0;
-    bool input_change_speed    = (input_events & 0b00010000) != 0;
+    // Check falling events.
+    bool input_mode_disabled   = (input_falling_events & 0b00000001) != 0;
+    bool input_debug_mode      = (input_falling_events & 0b00000010) != 0;
+    bool input_run_step        = (input_falling_events & 0b00000100) != 0;
+    bool input_run_instruction = (input_falling_events & 0b00001000) != 0;
+    bool input_change_speed    = (input_falling_events & 0b00010000) != 0;
+
+    // Update state pins
+    enabled = (input_state & 0b00000001) != 0;
 
     // Handle events.
+    if (input_mode_disabled) {
+        // Schedule a reset.
+        reset_scheduled = true;
+
+        // Reset state.
+        LATB &= 0b00000100;
+        debug_mode = true;
+        cycle_state = 0;
+    }
     if (input_debug_mode) {
         if (enabled) {
             // Toggle debug mode.
@@ -362,21 +376,6 @@ int main() {
             state = AX08_SEQ_STATE_RUN_INSTRUCTION;
         }
         previous_break_state = PIN_BREAK;
-
-        // Check if sequencer was enabled / disabled.
-        if (PIN_ENABLE != enabled) {
-            enabled = PIN_ENABLE;
-
-            if (!enabled) {
-                // Sequencer was disabled.
-                reset_scheduled = true;
-
-                // Reset state.
-                LATB &= 0b00000100;
-                debug_mode = true;
-                cycle_state = 0;
-            }
-        }
 
         // Handle timer post scale.
         if (unscaled_time >= STATE_TIMER_PS[i_selected_postscaler]) {
