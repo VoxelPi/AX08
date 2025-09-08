@@ -55,6 +55,11 @@
 #define PIN_BREAK RA7
 #define PIN_ENABLE RA0
 
+/**
+    Optional bug fixes.
+ */
+#define BUGFIX_SKIP_BREAK_STORE // Fix https://github.com/VoxelPi/AX08/issues/2
+
 #pragma region Global State
 
 /*
@@ -223,6 +228,12 @@ void ax08_seq_run_step() {
             PIN_INCREMENT_PC = true;
             break;
         case 3:
+            // Handle break opcode.
+            if (!PIN_BREAK) {
+                debug_mode = true;
+                state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+            }
+
             PIN_HOLD_OUTPUT = false;
             PIN_STORE_PC = true;
             break;
@@ -231,6 +242,14 @@ void ax08_seq_run_step() {
             PIN_STORE_PC = false;
             break;
         case 5:
+            // FIX for hardware bug on AX08L: https://github.com/VoxelPi/AX08/issues/2
+            // Skip the store pulse, as it would clear a register.
+            #ifdef BUGFIX_SKIP_BREAK_STORE
+            if (!PIN_BREAK) {
+                break;
+            }
+            #endif
+
             PIN_STORE_OUTPUT = true;
             break;
         case 6: // Reset mode.
@@ -373,13 +392,6 @@ int main() {
             uint8_t input_state = ax08_seq_poll_input();
             ax08_seq_handle_input(input_state);
         }
-
-        // Check for a break instruction
-        if (!debug_mode && !PIN_BREAK && (previous_break_state != PIN_BREAK)) {
-            debug_mode = true;
-            state = AX08_SEQ_STATE_RUN_INSTRUCTION;
-        }
-        previous_break_state = PIN_BREAK;
 
         // Handle timer post scale.
         if (unscaled_time >= STATE_TIMER_PS[i_selected_postscaler]) {
