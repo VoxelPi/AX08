@@ -76,13 +76,13 @@ typedef enum ax08_seq_state {
     AX08_SEQ_STATE_RUN,             // The sequencer is running.
 } ax08_seq_state_t;
 
-bool enabled = true;
+bool enabled = false;
 bool debug_mode = true;                      // If the sequencer is currently in debug mode.
 ax08_seq_state_t state = AX08_SEQ_STATE_RUN; // The current state.
 uint8_t cycle_state = 0;                     // A number in [0, 5], representing the current cycle state.
 bool state_changed = true;                   // If a new state is available to be processed by the main loop.
 bool previous_break_state = false;           // Previous state of the break pin.
-bool reset_scheduled = false;
+bool reset_scheduled = true;                 // Schedule a reset during sequencer initialization.
 
 /*
     Variables related to user input.
@@ -244,13 +244,13 @@ void ax08_seq_update_state() {
         // Write reset state.
         LATB &= 0b00000100;
         PIN_STORE_PC = true;
-        return; // Skip remaining handler.
-    }
 
-    // Handle disabled sequencer.
-    if (!enabled) {
-        LATB &= 0b00000100;
-        return; // Skip remaining handler.
+        // Next step should be a clear.
+        cycle_state = 6;
+        state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+
+        // Skip remaining handler.
+        return;
     }
 
     // Handle state updates.
@@ -342,9 +342,6 @@ int main() {
     // Configure interrupts.
     INTCONbits.PEIE = true;  // Enable peripheral interrupts.
     INTCONbits.GIE = true;   // Enable interrupts.
-
-    // Schedule a state reset.
-    reset_scheduled = true;
 
     /**
         Main loop
