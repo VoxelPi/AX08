@@ -8,7 +8,7 @@
             "imageType": "application",
             "imagePath": "./out/ax08-io/default.elf",
             "toolProperties": "default-tool-base",
-            "tool": "PICkit 4",
+            "tool": "PICkit 5",
             "packs": [
                 {
                     "name": "PIC12-16F1xxx_DFP",
