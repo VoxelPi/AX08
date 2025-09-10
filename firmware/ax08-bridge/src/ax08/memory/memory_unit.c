@@ -127,7 +127,7 @@ void memory_init_data_pio() {
         channel_config_set_transfer_data_size(&dma_chan_con, DMA_SIZE_8);
         channel_config_set_read_increment(&dma_chan_con, false);
         channel_config_set_write_increment(&dma_chan_con, false);
-        channel_config_set_dreq(&dma_chan_con, pio_get_dreq(pio1, sm, false));
+        channel_config_set_dreq(&dma_chan_con, pio_get_dreq(pio2, sm, false));
         dma_channel_configure(
             dma_chan,
             &dma_chan_con,
