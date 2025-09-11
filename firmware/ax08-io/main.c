@@ -104,11 +104,14 @@ int main() {
     while (!OSCSTATbits.PLLR) // Wait for the clock to be initialized.
         ;
 
+    // Enable global weak pull ups.
+    OPTION_REGbits.nWPUEN = false;
+
     // Initialize A pins.
     PORTA  = 0b00000000;
     LATA   = 0b00000000;
     ANSELA = 0b00000000;
-    WPUA   = 0b00000000;
+    WPUA   = 0b00100000;
     TRISA  = 0b10111111;
 
     // Initialize B pins.

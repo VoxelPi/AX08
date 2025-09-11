@@ -29,7 +29,7 @@
     RB4 - RB7: [INPUT] input bits 4..7
     RB2:       [OUTPUT] UART TX
 
-    UNUSED: RA4 - RA7, RB0, RB2, RB3
+    UNUSED: RA4 - RA7, RB0, RB1, RB3
 */
 
 int main() {
@@ -40,19 +40,22 @@ int main() {
     while (!OSCSTATbits.PLLR) // Wait for the clock to be initialized.
         ;
 
+    // Enable global weak pull ups.
+    OPTION_REGbits.nWPUEN = false;
+
     // Initialize A pins.
     PORTA  = 0b00000000;
     LATA   = 0b00000000;
     ANSELA = 0b00000000;
-    WPUA   = 0b00000000;
-    TRISA  = 0b11111111;
+    WPUA   = 0b00100000; // Enable weak pull up of RA5.
+    TRISA  = 0b00101111;
 
     // Initialize B pins.
     PORTB  = 0b00000000;
     LATB   = 0b00000000;
     ANSELB = 0b00000000;
     WPUB   = 0b00000000;
-    TRISB  = 0b11111011; // RB2 is a UART TX output
+    TRISB  = 0b11110000; // RB2 is a UART TX output
 
     // Configure UART baud rate.
     BAUDCONbits.BRG16 = 1; // Enable 16bit baud rate mode.
