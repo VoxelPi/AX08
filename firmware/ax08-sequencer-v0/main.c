@@ -23,17 +23,20 @@
 
 #define _XTAL_FREQ 32000000
 
-#define BASE_DELAY 500
-#define MS_DELAY_LONG 500
+#define BASE_DELAY 12                             // minimum memory packet propagation delay
+#define HALF_DELAY ((unsigned int)(BASE_DELAY/2)) // calculated half propagation delay
+#define BOARD_DELAY 2                             // minimum board logic propagation delay
+#define MS_DELAY_LONG 25
 
 /*
     PIN MAPPING:
-        RA5 - RA7: unused (in)
         RA0: MODE (in)
         RA1: ACTION (in)
         RA2: CYCLE (in)
         RA3: STEP (in)
-        RA4: DELAY1 (in)
+        RA4: DELAY (in)
+        RA5, RA6: UART RTS (in), UART CTS (out)
+        RA7: BREAK (in)
 
         RB1, RB2: UART RX (in), UART TX (out)
         RB0: PC_SOURCE_INC (out)
@@ -45,10 +48,20 @@
 */
 
 void stepdelay() {
-    __delay_us(BASE_DELAY);
-    if ((PORTA & 0b00010000) == 0) { //DEALY1 check
+    __delay_us(BOARD_DELAY);
+    if ((PORTA & 0b00010000) == 0) { //DELAY check
         __delay_ms(MS_DELAY_LONG);
     }
+    return;
+}
+
+void packetdelay() {
+    __delay_us(BASE_DELAY);
+    return;
+}
+
+void halfpacketdelay() {
+    __delay_us(HALF_DELAY);
     return;
 }
 
@@ -60,11 +73,14 @@ int main() {
     while (!OSCSTATbits.PLLR) // Wait for the clock to be initialized.
         ;
 
+    // Enable global weak pull ups.
+    OPTION_REGbits.nWPUEN = false;
+
     // Initialize A pins.
     PORTA  = 0b00000000;
     LATA   = 0b00000000;
     ANSELA = 0b00000000;
-    WPUA   = 0b00000000;
+    WPUA   = 0b00100000;
     TRISA  = 0b11111111;
 
     // Initialize B pins.
@@ -93,6 +109,14 @@ int main() {
             LATB = LATB & 0b00000100;
             state = 0;
 
+            if (prev_mode == 1) {
+                __delay_ms(100);
+                RB6 = 1;
+                __delay_ms(1);
+                RB6 = 0;
+                __delay_ms(100);
+            }
+
             if ((PORTA & 0b00000010) == 0) { // ACTION button check
                 __delay_ms(50);
                 if ((PORTA & 0b00000010) != 0) goto act0_end;
@@ -110,7 +134,7 @@ int main() {
             prev_mode = 0;
         }
         else {
-            if ((PORTA & 0b10000000) == 0) { // BREAK check
+            if (((PORTA & 0b10000000) == 0) && (state != 0)) { // BREAK check
                 __delay_ms(50);
                 if ((PORTA & 0b10000000) != 0) goto brk0_end;
 
@@ -154,15 +178,17 @@ int main() {
                     state = 3;
                 }
             }
-            else if (state == 1) {
+            if (state == 1) {
                 LATB = LATB & 0b00000100;
 
                 LATB = LATB | 0b00001000;
                 stepdelay();
+                halfpacketdelay();
 
                 LATB = LATB & 0b00000100;
                 LATB = LATB | 0b00010000;
                 stepdelay();
+                halfpacketdelay();
 
                 LATB = LATB & 0b00000100;
                 LATB = LATB | 0b00100001;
@@ -177,6 +203,7 @@ int main() {
 
                 LATB = LATB | 0b10000000;
                 stepdelay();
+                packetdelay();
 
                 act1_start:
                 if ((PORTA & 0b00000010) == 0) { // ACTION button check
@@ -196,10 +223,12 @@ int main() {
 
                 LATB = LATB | 0b00001000;
                 stepdelay();
+                halfpacketdelay();
 
                 LATB = LATB & 0b00000100;
                 LATB = LATB | 0b00010000;
                 stepdelay();
+                halfpacketdelay();
 
                 LATB = LATB & 0b00000100;
                 LATB = LATB | 0b00100001;
@@ -214,6 +243,7 @@ int main() {
 
                 LATB = LATB | 0b10000000;
                 stepdelay();
+                packetdelay();
 
                 LATB = LATB & 0b00000100;
 
