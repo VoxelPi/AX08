@@ -12,7 +12,7 @@
 
 #include "program.h"
 
-#define AX08_MEMORY_BAUD 2000000
+#define AX08_MEMORY_BAUD 4000000
 
 // Pin mapping
 const unsigned int PINS_MEMORY_INSTRUCTION_ADDRESS[2] = {14, 15};

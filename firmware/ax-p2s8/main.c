@@ -61,7 +61,7 @@ int main() {
     BAUDCONbits.BRG16 = 1; // Enable 16bit baud rate mode.
     TXSTAbits.BRGH = 1;    // Enable speed mode.
     SPBRGH = 0;  // Configure a baud rate of
-    SPBRGL = 3; // 2 MHz
+    SPBRGL = 1; // 4 MHz
 
     // Configure UART.
     RCSTAbits.SPEN = 1; // Serial port enabled. (Configures RX and TX pins as serial port pins)
