@@ -2,6 +2,12 @@
 
 #include "util/buffer.h"
 #include "hardware/gpio.h"
+#include "hardware/uart.h"
+
+#define PACKET_ID_ECHO 0x00
+#define PACKET_ID_INFO 0x01
+#define PACKET_ID_UPLOAD_PROGRAM_HEADER 0x10
+#define PACKET_ID_UPLOAD_PROGRAM_CHUNK 0x11
 
 void ax08_init() {
     ax08_memory_init();
@@ -15,6 +21,7 @@ void ax08_init() {
 
     while (true) {
         const PacketBuffer *received_packet = ax08_bridge_read_packet();
+
         if (received_packet != NULL) {
             BufferReader reader;
             ax08_bridge_packet_init_reader(received_packet, &reader);
@@ -23,12 +30,12 @@ void ax08_init() {
             buffer_read_uint8(&reader, &packet_id);
 
             switch (packet_id) {
-            case 0:
+            case PACKET_ID_ECHO:
                 // Echo packet.
                 ax08_bridge_send_packet(received_packet);
                 break;
 
-            case 1:
+            case PACKET_ID_INFO:
                 // Info packet.
                 PacketBuffer response;
                 BufferWriter writer;
@@ -42,6 +49,14 @@ void ax08_init() {
                 ax08_bridge_packet_close_writer(&response, &writer);
                 ax08_bridge_packet_update_sha256(&response);
                 ax08_bridge_send_packet(&response);
+                break;
+
+            case PACKET_ID_UPLOAD_PROGRAM_HEADER:
+                uart_puts(uart0, "HEADER");
+                break;
+
+            case PACKET_ID_UPLOAD_PROGRAM_CHUNK:
+                ax08_memory_program_handle_chunk_update(&reader);
                 break;
 
             default:
