@@ -29,8 +29,8 @@
 
     RA0, IN:  MODE              (active high)
     RA1, IN:  toggle debug mode (button, active low)
-    RA2, IN:  run step          (button, active low)
-    RA3, IN:  run instruction   (button, active low)
+    RA2, IN:  run instruction   (button, active low)
+    RA3, IN:  run step          (button, active low)
     RA4, IN:  cycle clock speed (button, active low)
     RA5, IN:  UART CTS          (currently unused)
     RA6, OUT: UART RTS          (currently unused)
@@ -76,8 +76,8 @@ volatile uint16_t unscaled_time = 0;                                            
 */
 typedef enum ax08_seq_state {
     AX08_SEQ_STATE_RUN = 0,             // The sequencer is running.
-    AX08_SEQ_STATE_RUN_STEP = 1,        // The sequencer is running one step.
-    AX08_SEQ_STATE_RUN_INSTRUCTION = 2, // The sequencer is running one instruction.
+    AX08_SEQ_STATE_RUN_INSTRUCTION = 1, // The sequencer is running one instruction.
+    AX08_SEQ_STATE_RUN_STEP = 2,        // The sequencer is running one step.
     AX08_SEQ_STATE_IDLE = 3,            // The sequencer is waiting for further instructions.
 } ax08_seq_state_t;
 
@@ -151,8 +151,8 @@ void ax08_seq_handle_input(uint8_t input_state) {
     // Check falling events.
     bool input_mode_disabled   = (input_falling_events & 0b00000001) != 0;
     bool input_debug_mode      = (input_falling_events & 0b00000010) != 0;
-    bool input_run_step        = (input_falling_events & 0b00000100) != 0;
-    bool input_run_instruction = (input_falling_events & 0b00001000) != 0;
+    bool input_run_instruction = (input_falling_events & 0b00000100) != 0;
+    bool input_run_step        = (input_falling_events & 0b00001000) != 0;
     bool input_change_speed    = (input_falling_events & 0b00010000) != 0;
 
     // Update state pins
@@ -181,18 +181,18 @@ void ax08_seq_handle_input(uint8_t input_state) {
             reset_scheduled = true;
         }
     }
-    if (input_run_step) {
-        // Enable debug mode if not already active,
-        // and configure the statemachine to execute exactly one step.
-        if (enabled) {
-            state = AX08_SEQ_STATE_RUN_STEP;
-        }
-    }
     if (input_run_instruction) {
         // Enable debug mode if not already active,
         // and configure the statemachine to execute exactly one instruction.
         if (enabled) {
             state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+        }
+    }
+    if (input_run_step) {
+        // Enable debug mode if not already active,
+        // and configure the statemachine to execute exactly one step.
+        if (enabled) {
+            state = AX08_SEQ_STATE_RUN_STEP;
         }
     }
     if (input_change_speed) {
