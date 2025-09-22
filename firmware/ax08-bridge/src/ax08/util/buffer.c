@@ -2,6 +2,18 @@
 
 #include <string.h>
 
+bool buffer_read(BufferReader *reader, const size_t length, void *dest) {
+    if (BUFFER_READ_CHECKS) {
+        if (reader->index + length > reader->size) {
+            return false;
+        }
+    }
+
+    memcpy(dest, reader->data + reader->index, length);
+    reader->index += length;
+    return true;
+}
+
 bool buffer_read_uint8(BufferReader *reader, uint8_t *value) {
     if (BUFFER_READ_CHECKS) {
         if (reader->index > (reader->size - 1)) {
@@ -48,6 +60,10 @@ bool buffer_read_uint64(BufferReader *reader, uint64_t *value) {
     *value = *((uint64_t*)(reader->data + reader->index));
     reader->index += 8;
     return true;
+}
+
+bool buffer_read_uint8_array(BufferReader *reader, const size_t length, uint8_t *dest) {
+    return buffer_read(reader, length * 1, (void*)dest);
 }
 
 bool buffer_read_char(BufferReader *reader, char *value) {
@@ -165,6 +181,19 @@ bool buffer_read_str16(BufferReader *reader, char *value, uint16_t *length, cons
 }
 
 
+bool buffer_write(BufferWriter *writer, size_t length, const void *src) {
+    if (BUFFER_READ_CHECKS) {
+        if (writer->index + length > writer->size) {
+            return false;
+        }
+    }
+
+    memcpy(writer->data + writer->index, src, length);
+    writer->index += length;
+    return true;
+}
+
+
 bool buffer_write_uint8(BufferWriter *writer, const uint8_t value) {
     if (BUFFER_WRITE_CHECKS) {
         if (writer->index > (writer->size - 1)) {
@@ -211,6 +240,10 @@ bool buffer_write_uint64(BufferWriter *writer, const uint64_t value) {
     *((uint64_t*)(writer->data + writer->index)) = value;
     writer->index += 8;
     return true;
+}
+
+bool buffer_write_uint8_array(BufferWriter *writer, size_t length, const uint8_t *src) {
+    return buffer_write(writer, length * 1, (const void*)src);
 }
 
 bool buffer_write_char(BufferWriter *writer, char value) {

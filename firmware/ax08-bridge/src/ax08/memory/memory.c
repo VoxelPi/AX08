@@ -1,6 +1,8 @@
-#include "memory_unit.h"
+#include "memory.h"
 
+#include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "hardware/dma.h"
 #include "hardware/pio.h"
@@ -10,9 +12,11 @@
 #include "uart_rx.pio.h"
 #include "uart_tx.pio.h"
 
-#include "program.h"
+#include "../util/buffer.h"
+#include "../bridge/protocol.h"
 
 #define AX08_MEMORY_BAUD 4000000
+#define AX08_MEMORY_SIZE 0x10000
 
 // Pin mapping
 const unsigned int PINS_MEMORY_INSTRUCTION_ADDRESS[2] = {14, 15};
@@ -27,7 +31,7 @@ const unsigned int PINS_MEMORY_DATA_ADDRESS[2] = {18, 19};
 #define PIN_MEMORY_OPCODE 26 // Opcode low = Write
 #define PIN_MEMORY_HOLD  27 // Hold rising -> take input
 
-volatile AX08MemoryUnit memory_unit;
+volatile AX08MemoryUnit ax08_memory_unit;
 
 typedef union byteint16_t {
     uint16_t word;
@@ -37,8 +41,6 @@ typedef union byteint16_t {
 volatile byteint16 instruction_address_word;
 volatile byteint16 data_address_word;
 volatile uint8_t data_word_in;
-
-uint8_t memory_data[0x10000];
 
 void memory_init_instruction_pio() {
     int tx_program_offset = pio_add_program(pio0, &uart_tx_program);
@@ -158,7 +160,7 @@ void ax08_memory_core1_entry() {
         bool is_hold = gpio_get(PIN_MEMORY_HOLD);
         if (is_write) {
             if (is_hold && !is_prev_hold) {
-                memory_data[data_address_word.word] = data_word_in;
+                ax08_memory_unit.data_words[data_address_word.word] = data_word_in;
             }
             is_prev_hold = is_hold;
         } else {
@@ -166,20 +168,27 @@ void ax08_memory_core1_entry() {
         }
 
         // Update data word.
-        uint8_t data_word = memory_data[data_address_word.word];
+        uint8_t data_word;
+        if (data_address_word.word < AX08_N_DATA_WORDS) {
+            data_word = ax08_memory_unit.data_words[data_address_word.word];
+        } else {
+            data_word = ax08_memory_unit.instruction_words[data_address_word.word] & 0xFF;
+        }
         if (data_word != previous_data_word) {
             pio_sm_put(pio2, 1, data_word);
             previous_data_word = data_word;
         }
 
         // Update instruction word.
-        uint32_t instruction_word = ax08_program_instructions[instruction_address_word.word];
-        if (instruction_word != previous_instruction_word) {
-            pio_sm_put(pio0, 0, (instruction_word >>  0) & 0xFF);
-            pio_sm_put(pio0, 1, (instruction_word >>  8) & 0xFF);
-            pio_sm_put(pio0, 2, (instruction_word >> 16) & 0xFF);
-            pio_sm_put(pio0, 3, (instruction_word >> 24) & 0xFF);
-            previous_instruction_word = instruction_word;
+        uint32_t instruction_word = ax08_memory_unit.instruction_words[instruction_address_word.word];
+        if (ax08_memory_unit.active) {
+            if (instruction_word != previous_instruction_word) {
+                pio_sm_put(pio0, 0, (instruction_word >>  0) & 0xFF);
+                pio_sm_put(pio0, 1, (instruction_word >>  8) & 0xFF);
+                pio_sm_put(pio0, 2, (instruction_word >> 16) & 0xFF);
+                pio_sm_put(pio0, 3, (instruction_word >> 24) & 0xFF);
+                previous_instruction_word = instruction_word;
+            }
         }
     }
 }
@@ -190,6 +199,15 @@ void ax08_memory_init() {
     memory_init_address_pio();
     memory_init_data_pio();
 
+    // uart_puts(uart1, "MEMORY INIT\n"); THIS KILL EVERYTHING
+
+    // Clear memory.
+    ax08_memory_unit.active = false;
+    ax08_memory_unit.valid_program = false;
+    memset((void*)ax08_memory_unit.instruction_words, 0, AX08_N_INSTRUCTION_WORDS * sizeof(uint32_t));
+    memset((void*)ax08_memory_unit.data_words, 0, AX08_N_DATA_WORDS * sizeof(uint8_t));
+    memset((void*)ax08_memory_unit.program_chunk_state, 0xFF, AX08_PROGRAM_CHUNK_COUNT / 8);
+
     // Configure extra pins.
     gpio_init(PIN_MEMORY_OPCODE);
     gpio_set_dir(PIN_MEMORY_OPCODE, GPIO_IN);
@@ -198,4 +216,75 @@ void ax08_memory_init() {
 
     // Launch memory unit main method on core1.
     multicore_launch_core1(ax08_memory_core1_entry);
+}
+
+#pragma region Program Upload
+
+void ax08_memory_program_handle_upload_start(BufferReader *buffer) {
+    // Mark the program as not active.
+    ax08_memory_unit.active = false;
+    ax08_memory_unit.valid_program = true;
+
+    // Output 0 instruction.
+    pio_sm_put(pio0, 0, 0);
+    pio_sm_put(pio0, 1, 0);
+    pio_sm_put(pio0, 2, 0);
+    pio_sm_put(pio0, 3, 0);
+
+    // Clear the memory.
+    memset((void*)ax08_memory_unit.instruction_words, 0, AX08_N_INSTRUCTION_WORDS * sizeof(uint32_t));
+    memset((void*)ax08_memory_unit.data_words, 0, AX08_N_DATA_WORDS * sizeof(uint8_t));
+
+    // Copy over chunk flags (n / 8) bytes. (0 is ready, 1 is pending chunk update)
+    buffer_read(buffer, AX08_PROGRAM_CHUNK_COUNT / 8, (void*)(ax08_memory_unit.program_chunk_state));
+}
+
+void ax08_memory_program_handle_upload_chunk(BufferReader *buffer) {
+    // Read chunk index.
+    uint16_t chunk_index;
+    buffer_read_uint16(buffer, &chunk_index);
+
+    // Clear chunk flag.
+    size_t i_chunk_state_word = chunk_index >> 5;
+    size_t i_chunk_state_bit = chunk_index & 0b11111;
+    if (!(ax08_memory_unit.program_chunk_state[i_chunk_state_word] & (1 << i_chunk_state_bit))) {
+        // A chunk was received that was already marked as ready.
+        ax08_memory_unit.valid_program = false;
+        return;
+    }
+    ax08_memory_unit.program_chunk_state[i_chunk_state_word] &= ~(1 << i_chunk_state_bit);
+
+    // Copy data.
+    buffer_read(buffer, 1024, ((void*)ax08_memory_unit.instruction_words) + (chunk_index * 1024));
+}
+
+void ax08_memory_program_handle_upload_end(BufferReader *buffer) {
+    // Loop through all words of the chunk map. If any bit of the flag is still set,
+    // Then the computer is still waiting for a chunk and the program is not ready.
+    bool ready = true;
+    for (unsigned int i = 0; i < AX08_PROGRAM_CHUNK_COUNT / 32; ++i) {
+        if (ax08_memory_unit.program_chunk_state[i]) {
+            ready = false;
+            break;
+        }
+    }
+
+    // Set the memory unit state to ready if threre is a valid program.
+    if (ready && ax08_memory_unit.valid_program) {
+        // Mark the program as active.
+        ax08_memory_unit.active = true;
+    }
+
+    // Send program state packet.
+    PacketBuffer response;
+    BufferWriter writer;
+    ax08_bridge_packet_init_writer(&response, &writer);
+
+    buffer_write_uint8(&writer, 0x13); // Response packet id.
+    buffer_write_uint8(&writer, ax08_memory_unit.valid_program); // Valid program.
+    buffer_write(&writer, AX08_PROGRAM_CHUNK_COUNT / 8, (void*)(ax08_memory_unit.program_chunk_state));
+
+    ax08_bridge_packet_close_writer(&response, &writer);
+    ax08_bridge_packet_update_sha256(&response);
+    ax08_bridge_send_packet(&response);
 }

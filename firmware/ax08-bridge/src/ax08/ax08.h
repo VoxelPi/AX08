@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bridge/protocol.h"
-#include "memory/memory_unit.h"
+#include "memory/memory.h"
 #include "sequencer/sequencer.h"
 
 #define AX08_PROTOCOL_VERSION 0

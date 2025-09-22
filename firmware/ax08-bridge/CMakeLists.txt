@@ -47,8 +47,7 @@ add_executable(
     ax08-bridge
     src/main.c
     src/ax08/ax08.c
-    src/ax08/memory/memory_unit.c
-    src/ax08/memory/program.c
+    src/ax08/memory/memory.c
     src/ax08/bridge/protocol.c
     src/ax08/sequencer/sequencer.c
     src/ax08/util/buffer.c
