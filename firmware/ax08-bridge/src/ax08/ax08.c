@@ -6,8 +6,9 @@
 
 #define PACKET_ID_ECHO 0x00
 #define PACKET_ID_INFO 0x01
-#define PACKET_ID_UPLOAD_PROGRAM_HEADER 0x10
+#define PACKET_ID_UPLOAD_PROGRAM_START 0x10
 #define PACKET_ID_UPLOAD_PROGRAM_CHUNK 0x11
+#define PACKET_ID_UPLOAD_PROGRAM_END 0x12
 
 void ax08_init() {
     ax08_memory_init();
@@ -51,12 +52,16 @@ void ax08_init() {
                 ax08_bridge_send_packet(&response);
                 break;
 
-            case PACKET_ID_UPLOAD_PROGRAM_HEADER:
-                uart_puts(uart0, "HEADER");
+            case PACKET_ID_UPLOAD_PROGRAM_START:
+                ax08_memory_program_handle_upload_start(&reader);
                 break;
 
             case PACKET_ID_UPLOAD_PROGRAM_CHUNK:
-                ax08_memory_program_handle_chunk_update(&reader);
+                ax08_memory_program_handle_upload_chunk(&reader);
+                break;
+
+            case PACKET_ID_UPLOAD_PROGRAM_END:
+                ax08_memory_program_handle_upload_end(&reader);
                 break;
 
             default:
