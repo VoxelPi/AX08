@@ -1,0 +1,4 @@
+export/
+pcb/
+*.png
+creo_parametric_customization.ui
