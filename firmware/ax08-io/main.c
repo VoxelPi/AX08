@@ -47,8 +47,8 @@
 #define PIN_OP_POLL RA7  // INPUT
 #define PIN_OP_READ RB0  // INPUT
 #define PIN_OP_WRITE RB3 // INPUT
-#define IN_UART_CTS RA5  // INPUT
-#define IN_UART_RTS RA6  // OUTPUT
+#define PIN_UART_CTS RA5 // INPUT
+#define PIN_UART_RTS LATA6 // OUTPUT
 
 volatile uint16_t i_read;
 volatile uint16_t i_write;
@@ -139,7 +139,11 @@ int main() {
     INTCONbits.PEIE = 1; // Enable peripheral interrupts.
     INTCONbits.GIE = 1;  // Enable interrupts.
 
+    // Enable RTS
+    PIN_UART_RTS = true;
+
     // Send initialization message.
+    send_string("\n");
     send_string(" _____ __ __     ___ ___ \n");
     send_string("|  _  |  |  |___|   | . |\n");
     send_string("|     |-   -|___| | | . |\n");
