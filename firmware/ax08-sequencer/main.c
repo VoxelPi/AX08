@@ -58,12 +58,18 @@
 /**
     Optional bug fixes.
  */
-#define BUGFIX_SKIP_BREAK_STORE // Fix https://github.com/VoxelPi/AX08/issues/2
+// Fix https://github.com/VoxelPi/AX08/issues/2
+// Only relevant on the AX08L boards.
+#define BUGFIX_SKIP_BREAK_STORE
 
 #pragma region Global State
 
 /*
     Variables related to the clock speed.
+    Three clock speed preset are defined:
+    - 5kHz
+    - 100 Hz
+    - 1 Hz
 */
 #define STATE_TIMER_PERIOD 17                                                        // Timer2 period in µs
 const uint16_t STATE_TIMER_PS[] = { 2, 100, 10000 };                     // Clock postscalers.
@@ -116,8 +122,7 @@ volatile uint16_t i_write;                          // The location of the write
 */
 uint8_t ax08_seq_poll_input() {
     // Insert new value into input buffer.
-    input_buffer[i_next_input_state] = PORTA;
-    i_next_input_state += 1;
+    input_buffer[i_next_input_state++] = PORTA;
     if (i_next_input_state >= INPUT_BUFFER_SIZE) {
         i_next_input_state = 0;
     }
@@ -197,7 +202,7 @@ void ax08_seq_handle_input(uint8_t input_state) {
     }
     if (input_change_speed) {
         // Cycle state timer post scaler.
-        i_selected_postscaler += 1;
+        ++i_selected_postscaler;
         if (i_selected_postscaler >= N_STATE_TIMER_PS) {
             i_selected_postscaler = 0;
         }
@@ -259,7 +264,7 @@ void ax08_seq_run_step() {
     }
 
     // Increment cycle state.
-    cycle_state += 1;
+    ++cycle_state;
     if (cycle_state >= 7) {
         cycle_state = 0;
     }
@@ -409,11 +414,13 @@ int main() {
 void __interrupt() ISR() {
     // Handle timer2 match interrupt. (State timer).
     if (TMR2IF) {
-        // Increment time.
-        unscaled_time += 1;
+        // Increment software timer.
+        ++unscaled_time;
 
         // Clear interrupt flag.
         TMR2IF = 0;
+
+        return;
     }
 
     // Handle timer4 match interrupt. (Input timer).
@@ -423,15 +430,18 @@ void __interrupt() ISR() {
 
         // Clear interrupt flag.
         TMR4IF = 0;
+
+        return;
     }
 
     // Handle UART RX interrupts. (Bridge communication).
     if (RCIF) {
         // Insert received data into buffer.
-        buffer_data[i_write] = RCREG;
-        i_write += 1;
+        buffer_data[i_write++] = RCREG;
         if (i_write >= BRIDGE_UART_BUFFER_SIZE) {
             i_write = 0;
         }
+
+        return;
     }
 }

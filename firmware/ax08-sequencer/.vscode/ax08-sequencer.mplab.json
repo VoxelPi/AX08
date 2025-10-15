@@ -1,5 +1,5 @@
 {
-    "version": "1.6",
+    "version": "1.7",
     "configurations": [
         {
             "name": "default",
@@ -33,7 +33,7 @@
             "name": "default-tool-base",
             "type": "tool",
             "properties": {
-                "poweroptions.powerenable": false,
+                "poweroptions.powerenable": true,
                 "voltagevalue": "5",
                 "debugoptions.debug-startup": "Run"
             }

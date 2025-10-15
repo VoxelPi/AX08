@@ -2,5 +2,11 @@
     "mplab.clangd.arguments": [
         "--compile-commands-dir=${workspaceFolder}\\_build\\ax08-sequencer\\default"
     ],
-    "mplab.clangd.path": "c:\\Program Files\\Microchip\\xc8\\v3.00\\bin\\xc8-clangd.exe"
+    "mplab.clangd.path": "c:\\Program Files\\Microchip\\xc8\\v3.00\\bin\\xc8-clangd.exe",
+    "memory-inspector.debugTypes": [
+        "arm-debugger",
+        "embedded-debug",
+        "gdb",
+        "mplab-core-da"
+    ]
 }
