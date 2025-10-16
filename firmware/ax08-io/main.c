@@ -21,9 +21,26 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+
+
+#pragma region Config
+
 #define _XTAL_FREQ 32000000
 
-#define BUFFER_SIZE 512
+#define RX_BUFFER_SIZE 512
+#define TX_BUFFER_SIZE 256
+
+// The initialization message that is send whenever the io module is initialized.
+const char *INIT_MESSAGE =
+"\n _____ __ __     ___ ___ "
+"\n|  _  |  |  |___|   | . |"
+"\n|     |-   -|___| | | . |"
+"\n|__|__|__|__|   |___|___|"
+"\n";
+
+
+
+#pragma region Pin Definition
 
 // PINS
 // RA0: [I/O]    DATA.0
@@ -50,33 +67,49 @@
 #define PIN_UART_CTS RA5 // INPUT
 #define PIN_UART_RTS LATA6 // OUTPUT
 
-volatile uint16_t i_read;
-volatile uint16_t i_write;
-volatile char buffer_data[BUFFER_SIZE];
 
-typedef union {
-    struct {
-        unsigned bit0 :1;
-        unsigned bit1 :1;
-        unsigned bit2 :1;
-        unsigned bit3 :1;
-        unsigned bit4 :1;
-        unsigned bit5 :1;
-        unsigned bit6 :1;
-        unsigned bit7 :1;
-    };
-    unsigned byte :8;
-} bitwise_byte_t;
+#pragma region Global State
+
+typedef struct ring_buffer_8 {
+    volatile uint8_t i_read;
+    volatile uint8_t i_write;
+    volatile char *data;
+} ring_buffer_8_t;
+
+typedef struct ring_buffer_16 {
+    volatile uint16_t i_read;
+    volatile uint16_t i_write;
+    volatile char *data;
+} ring_buffer_16_t;
+
+volatile char rx_buffer_data[RX_BUFFER_SIZE];
+volatile ring_buffer_16_t rx_buffer = {
+    .i_read = 0,
+    .i_write = 0,
+    .data = rx_buffer_data,
+};
+
+volatile char tx_buffer_data[TX_BUFFER_SIZE];
+volatile ring_buffer_8_t tx_buffer = {
+    .i_read = 0,
+    .i_write = 0,
+    .data = tx_buffer_data,
+};
 
 // Sends a single character over UART.
 void send_character(uint8_t data) {
-    // Wait for the buffer to be empty.
-    while (!TXSTAbits.TRMT)
-        ;
-
-    // Send data to UART TX.
-    TXREG = data;
+    // Push the new data to the TX buffer.
+    tx_buffer.data[tx_buffer.i_write++] = data;
+    #if TX_BUFFER_SIZE != 256
+    if (tx_buffer.i_write >= TX_BUFFER_SIZE) { // Always false, because buffer size is exactly the 8bit uint limit.
+        tx_buffer.i_write = 0;
+    }
+    #endif
 }
+
+
+
+#pragma region Library Functions
 
 // Sends a string over UART.
 void send_string(const char* message) {
@@ -95,6 +128,10 @@ void write_word(const uint8_t word) {
     LATB &= (word | 0x0F);
     LATB |= (word & 0xF0);
 }
+
+
+
+#pragma region Main Function
 
 int main() {
 
@@ -135,7 +172,7 @@ int main() {
     // Configure Interrupts.
 
     PIE1bits.RCIE = 1;   // Enable UART receive interrupt.
-    // PIE1bits.TXIE = 1;   // Enable UART transmit interrupt.
+    PIE1bits.TXIE = 0;   // Disable UART transmit interrupt (until data is there to be send).
     INTCONbits.PEIE = 1; // Enable peripheral interrupts.
     INTCONbits.GIE = 1;  // Enable interrupts.
 
@@ -143,12 +180,7 @@ int main() {
     PIN_UART_RTS = true;
 
     // Send initialization message.
-    send_string("\n");
-    send_string(" _____ __ __     ___ ___ \n");
-    send_string("|  _  |  |  |___|   | . |\n");
-    send_string("|     |-   -|___| | | . |\n");
-    send_string("|__|__|__|__|   |___|___|\n");
-    send_string("                         \n");
+    send_string(INIT_MESSAGE);
 
     // Main loop
     while (true) {
@@ -164,7 +196,7 @@ int main() {
             TRISB  = 0b00001011;
 
             // Write 1 if data is available in the rx buffer.
-            bool is_rx_available = i_read != i_write;
+            bool is_rx_available = rx_buffer.i_read != rx_buffer.i_write;
             write_word(is_rx_available);
 
             // Wait for hold to be set.
@@ -190,9 +222,9 @@ int main() {
             TRISB  = 0b00001011;
 
             // Write next rx data from buffer if available.
-            bool is_rx_available = i_read != i_write;
+            bool is_rx_available = rx_buffer.i_read != rx_buffer.i_write;
             if (is_rx_available) {
-                uint8_t word = buffer_data[i_read];
+                uint8_t word = rx_buffer.data[rx_buffer.i_read];
                 write_word(word);
             } else {
                 write_word(0);
@@ -208,8 +240,10 @@ int main() {
 
             // Acknowledge read.
             if (is_rx_available) {
-                ++i_read;
-                i_read &= 0b111111111;
+                ++rx_buffer.i_read;
+                if (rx_buffer.i_read >= RX_BUFFER_SIZE) {
+                    rx_buffer.i_read = 0;
+                }
             }
 
             // Wait for hold to be cleared.
@@ -240,14 +274,38 @@ int main() {
             // Reset state machine.
             goto statemachine_entrypoint;
         }
+
+        // Handle transmit buffer.
+        if (!TXIE && tx_buffer.i_read != tx_buffer.i_write) {
+            // Enable tx interrupts if there is data to be send.
+            TXIE = true;
+        }
     }
 }
+
+
+
+#pragma region Interrupts
 
 void __interrupt() ISR() {
     // Check receive interrupt.
     if (RCIF) {
-        buffer_data[i_write] = RCREG;
-        ++i_write;
-        i_write &= 0b111111111; // Mask the first 9 bits.
+        rx_buffer.data[rx_buffer.i_write++] = RCREG;
+        if (rx_buffer.i_write >= RX_BUFFER_SIZE) {
+            rx_buffer.i_write = 0;
+        }
+    }
+
+    // Check transmit interrupt.
+    if (TXIF) {
+        TXREG = tx_buffer.data[tx_buffer.i_read++];
+        #if TX_BUFFER_SIZE != 256
+        if (tx_buffer.i_read >= TX_BUFFER_SIZE) { // Always false, because buffer size is exactly the 8bit uint limit.
+            tx_buffer.i_read = 0;
+        }
+        #endif
+
+        // Update interrupt enabled setting, depending if there is still data to be send. (Datasheet 26.1.1.3)
+        TXIE = tx_buffer.i_read != tx_buffer.i_write;
     }
 }
