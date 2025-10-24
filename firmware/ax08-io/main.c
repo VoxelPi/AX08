@@ -30,12 +30,16 @@
 #define RX_BUFFER_SIZE 512
 #define TX_BUFFER_SIZE 256
 
+#define STR_(X) #X
+#define STR(X) STR_(X)
+
 // The initialization message that is send whenever the io module is initialized.
 const char *INIT_MESSAGE =
 "\n _____ __ __     ___ ___ "
-"\n|  _  |  |  |___|   | . |"
-"\n|     |-   -|___| | | . |"
-"\n|__|__|__|__|   |___|___|"
+"\n|  _  |  |  |___|   | . |   IO UNIT"
+"\n|     |-   -|___| | | . |   Version: 0.2.0"
+"\n|__|__|__|__|   |___|___|   Commit: " STR(AX08_IO_FW_GIT_COMMIT)
+"\n"
 "\n";
 
 
