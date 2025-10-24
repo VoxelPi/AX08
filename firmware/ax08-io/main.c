@@ -189,6 +189,10 @@ int main() {
         TRISA  = 0b10111111;
         TRISB  = 0b11111011;
 
+        // Handle transmit buffer.
+        // Enable tx interrupts if there is data to be send.
+        TXIE = tx_buffer.i_read != tx_buffer.i_write;
+
         // POLL OPERATION.
         if (!PIN_OP_POLL) {
             // Configure data pins as outputs.
@@ -274,12 +278,6 @@ int main() {
             // Reset state machine.
             goto statemachine_entrypoint;
         }
-
-        // Handle transmit buffer.
-        if (!TXIE && tx_buffer.i_read != tx_buffer.i_write) {
-            // Enable tx interrupts if there is data to be send.
-            TXIE = true;
-        }
     }
 }
 
@@ -287,25 +285,23 @@ int main() {
 
 #pragma region Interrupts
 
-void __interrupt() ISR() {
+void __interrupt(__flags(RCIF)) isr_uart_rx() {
     // Check receive interrupt.
-    if (RCIF) {
-        rx_buffer.data[rx_buffer.i_write++] = RCREG;
-        if (rx_buffer.i_write >= RX_BUFFER_SIZE) {
-            rx_buffer.i_write = 0;
-        }
+    rx_buffer.data[rx_buffer.i_write++] = RCREG;
+    if (rx_buffer.i_write >= RX_BUFFER_SIZE) {
+        rx_buffer.i_write = 0;
     }
+}
 
+void __interrupt(__flags(TXIE, TXIF)) isr_uart_tx() {
     // Check transmit interrupt.
-    if (TXIF) {
-        TXREG = tx_buffer.data[tx_buffer.i_read++];
-        #if TX_BUFFER_SIZE != 256
-        if (tx_buffer.i_read >= TX_BUFFER_SIZE) { // Always false, because buffer size is exactly the 8bit uint limit.
-            tx_buffer.i_read = 0;
-        }
-        #endif
-
-        // Update interrupt enabled setting, depending if there is still data to be send. (Datasheet 26.1.1.3)
-        TXIE = tx_buffer.i_read != tx_buffer.i_write;
+    TXREG = tx_buffer.data[tx_buffer.i_read++];
+    #if TX_BUFFER_SIZE != 256
+    if (tx_buffer.i_read >= TX_BUFFER_SIZE) { // Always false, because buffer size is exactly the 8bit uint limit.
+        tx_buffer.i_read = 0;
     }
+    #endif
+
+    // Update interrupt enabled setting, depending if there is still data to be send. (Datasheet 26.1.1.3)
+    TXIE = tx_buffer.i_read != tx_buffer.i_write;
 }
