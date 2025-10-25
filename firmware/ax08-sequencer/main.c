@@ -81,10 +81,11 @@ volatile uint16_t unscaled_time = 0;                                            
     Variables related to the state machine.
 */
 typedef enum ax08_seq_state {
-    AX08_SEQ_STATE_RUN = 0,             // The sequencer is running.
-    AX08_SEQ_STATE_RUN_INSTRUCTION = 1, // The sequencer is running one instruction.
-    AX08_SEQ_STATE_RUN_STEP = 2,        // The sequencer is running one step.
-    AX08_SEQ_STATE_IDLE = 3,            // The sequencer is waiting for further instructions.
+    AX08_SEQ_STATE_RUN_TURBO = 0,       // The sequencer is running in turbo mode.
+    AX08_SEQ_STATE_RUN = 1,             // The sequencer is running.
+    AX08_SEQ_STATE_RUN_INSTRUCTION = 2, // The sequencer is running one instruction.
+    AX08_SEQ_STATE_RUN_STEP = 3,        // The sequencer is running one step.
+    AX08_SEQ_STATE_IDLE = 4,            // The sequencer is waiting for further instructions.
 } ax08_seq_state_t;
 
 bool enabled = false;
@@ -176,10 +177,27 @@ void ax08_seq_handle_input(uint8_t input_state) {
     if (input_debug_mode) {
         if (enabled) {
             // Toggle debug mode.
-            if (state == AX08_SEQ_STATE_RUN) {
-                state = AX08_SEQ_STATE_RUN_INSTRUCTION;
-            } else {
-                state = AX08_SEQ_STATE_RUN;
+            switch (state) {
+                case AX08_SEQ_STATE_RUN:
+                    // Finish current instruction and then switch to idle.
+                    state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+                    break;
+
+                case AX08_SEQ_STATE_RUN_TURBO:
+                    // Switch to idle state.
+                    state = AX08_SEQ_STATE_IDLE;
+
+                    // Enable state timer & state timer interrupts.
+                    TMR2IE = true;
+                    T2CONbits.TMR2ON = true;
+                    break;
+
+                default:
+                    // Always switch to normal run state first, as the cycle state is not known
+                    // and the turbo run mode assumes the previously instruction to be fully processed.
+                    // We therefore switch to turbo run in the state update function.
+                    state = AX08_SEQ_STATE_RUN;
+                    break;
             }
         } else {
             // Schedule reset
@@ -206,6 +224,25 @@ void ax08_seq_handle_input(uint8_t input_state) {
         if (i_selected_postscaler >= N_STATE_TIMER_PS) {
             i_selected_postscaler = 0;
         }
+
+        // We need to handle two special cases when switching the clock speed:
+        //
+        //   1. If the sequencer is currently in turbo run mode and we switch away from the turbo clock speed,
+        //      we need to switch back to normal run mode.
+        //
+        //   2. If the sequencer is currently in normal run mode and we switch to the turbo clock speed,
+        //      we need to switch to the turbo run mode. - This step is handled by the state
+        //
+        // Step 2 is handled by the state update function as the state machine needs to be in cycle state 0
+        // for the turbo mode to be enabled.
+        if (i_selected_postscaler != 0 && state == AX08_SEQ_STATE_RUN_TURBO) {
+            // Switch to run state.
+            state = AX08_SEQ_STATE_RUN;
+
+            // Enable state timer & state timer interrupts.
+            TMR2IE = true;
+            T2CONbits.TMR2ON = true;
+        }
     }
 }
 
@@ -231,6 +268,8 @@ void ax08_seq_run_step() {
         case 3:
             // Handle break opcode.
             if (!PIN_BREAK) {
+                // Switch to run instruction state so that the current instruction is full executed
+                // before entering the idle state.
                 state = AX08_SEQ_STATE_RUN_INSTRUCTION;
             }
 
@@ -268,6 +307,56 @@ void ax08_seq_run_step() {
     if (cycle_state >= 7) {
         cycle_state = 0;
     }
+}
+
+/**
+    Runs a full cycle as fast as possible.
+*/
+void ax08_seq_run_instruction_turbo() {
+    // FREEZE INSTRUCTION
+    PIN_STORE_OUTPUT = false;
+    PIN_FREEZE_WORD = true;
+    __delay_us(10);
+
+    // FREEZE OPCODE
+    PIN_FREEZE_WORD = false;
+    PIN_FREEZE_OPCODE = true;
+    __delay_us(10);
+
+    // FREEZE RESULT
+    PIN_FREEZE_OPCODE = false;
+    PIN_HOLD_OUTPUT = true;
+    PIN_INCREMENT_PC = true;
+    __delay_us(5);
+
+    // INCREMENT PC
+    if (!PIN_BREAK) {
+        // Handle break opcode.
+        // Switch to idle state but finish running this instruction.
+        state = AX08_SEQ_STATE_IDLE;
+    }
+    PIN_HOLD_OUTPUT = false;
+    PIN_STORE_PC = true;
+    __delay_us(5);
+
+    // STORE PC
+    PIN_INCREMENT_PC = false;
+    PIN_STORE_PC = false;
+    __delay_us(5);
+
+    // STORE RESULT
+    #ifdef BUGFIX_SKIP_BREAK_STORE
+    if (PIN_BREAK) {
+        PIN_STORE_OUTPUT = true;
+        __delay_us(20);
+    }
+    #else
+        PIN_STORE_OUTPUT = true;
+        __delay_us(20);
+    #endif
+
+    // RESET
+    PIN_STORE_OUTPUT = false;
 }
 
 /**
@@ -317,8 +406,24 @@ void ax08_seq_update_state() {
                 cycle_state = 0;
             }
 
+            // Check if we can enter the turbo run mode.
+            // This is the case if we are currently in cycle state 0 and have selected the turbo clock (0).
+            if (cycle_state == 0 && i_selected_postscaler == 0) {
+                // Disable state timer interrupts.
+                T2CONbits.TMR2ON = false;
+                TMR2IE = false;
+
+                // Enable turbo run state.
+                state = AX08_SEQ_STATE_RUN_TURBO;
+            }
+
             // Run a single step.
             ax08_seq_run_step();
+            break;
+
+        case AX08_SEQ_STATE_RUN_TURBO:
+            // This should never happen
+            state = AX08_SEQ_STATE_IDLE;
             break;
     }
 }
@@ -396,12 +501,16 @@ int main() {
             ax08_seq_handle_input(input_state);
         }
 
-        // Handle timer post scale.
-        if (unscaled_time >= STATE_TIMER_PS[i_selected_postscaler]) {
-            unscaled_time = 0;
+        if (state == AX08_SEQ_STATE_RUN_TURBO) {
+            ax08_seq_run_instruction_turbo();
+        } else {
+            // Handle state timer event.
+            if (unscaled_time >= STATE_TIMER_PS[i_selected_postscaler]) {
+                unscaled_time = 0;
 
-            // Update the sequencer state.
-            ax08_seq_update_state();
+                // Update the sequencer state.
+                ax08_seq_update_state();
+            }
         }
     }
 }
@@ -413,7 +522,7 @@ int main() {
 */
 void __interrupt() ISR() {
     // Handle timer2 match interrupt. (State timer).
-    if (TMR2IF) {
+    if (TMR2IE && TMR2IF) {
         // Increment software timer.
         ++unscaled_time;
 
