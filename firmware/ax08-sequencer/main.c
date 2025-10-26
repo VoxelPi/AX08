@@ -331,7 +331,10 @@ void ax08_seq_run_instruction_turbo() {
     PIN_FREEZE_OPCODE = false;
     PIN_HOLD_OUTPUT = true;
     PIN_INCREMENT_PC = true;
-    __delay_us(4);
+    __delay_us(2);
+    NOP();
+    NOP();
+    NOP();
 
     // INCREMENT PC
     if (!PIN_BREAK) {
@@ -341,12 +344,18 @@ void ax08_seq_run_instruction_turbo() {
     }
     PIN_HOLD_OUTPUT = false;
     PIN_STORE_PC = true;
-    __delay_us(4);
+    __delay_us(2);
+    NOP();
+    NOP();
+    NOP();
 
     // STORE PC
     PIN_INCREMENT_PC = false;
     PIN_STORE_PC = false;
-    __delay_us(4);
+    __delay_us(2);
+    NOP();
+    NOP();
+    NOP();
 
     // STORE RESULT
     #ifdef BUGFIX_SKIP_BREAK_STORE
