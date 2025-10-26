@@ -408,11 +408,6 @@ void ax08_seq_update_state() {
             break;
 
         case AX08_SEQ_STATE_RUN:
-            // Skip reset step in run state.
-            if (cycle_state == 6) {
-                cycle_state = 0;
-            }
-
             // Check if we can enter the turbo run mode.
             // This is the case if we are currently in cycle state 0 and have selected the turbo clock (0).
             if (cycle_state == 0 && i_selected_postscaler == 0) {
