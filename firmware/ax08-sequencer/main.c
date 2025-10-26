@@ -71,11 +71,11 @@
     - 100 Hz
     - 1 Hz
 */
-#define STATE_TIMER_PERIOD 17                                                        // Timer2 period in µs
-const uint16_t STATE_TIMER_PS[] = { 2, 100, 10000 };                     // Clock postscalers.
-const uint8_t N_STATE_TIMER_PS = sizeof(STATE_TIMER_PS) / sizeof(STATE_TIMER_PS[0]); // Number of post scalers.
-uint8_t i_selected_postscaler = 0;                                                   // The selected postscaler.
-volatile uint16_t unscaled_time = 0;                                                 // The unscaled time
+#define STATE_TIMER_HW_PERIOD 127                                                                       // Timer2 period in 1/8 µs.
+const uint16_t STATE_TIMER_SW_PERIOD[] = { 9, 90, 9000 };                                   // Clock postscalers.  (20kHz tubro, 100Hz, 1Hz)
+const uint8_t N_STATE_TIMER_CONFIGS = sizeof(STATE_TIMER_SW_PERIOD) / sizeof(STATE_TIMER_SW_PERIOD[0]); // Number of post scalers.
+uint8_t i_selected_timer_config = 0;                                                                    // The selected sw timer period.
+volatile uint16_t state_timer_sw_value = 0;                                                             // The value of the sw timer.
 
 /*
     Variables related to the state machine.
@@ -220,9 +220,9 @@ void ax08_seq_handle_input(uint8_t input_state) {
     }
     if (input_change_speed) {
         // Cycle state timer post scaler.
-        ++i_selected_postscaler;
-        if (i_selected_postscaler >= N_STATE_TIMER_PS) {
-            i_selected_postscaler = 0;
+        ++i_selected_timer_config;
+        if (i_selected_timer_config >= N_STATE_TIMER_CONFIGS) {
+            i_selected_timer_config = 0;
         }
 
         // We need to handle two special cases when switching the clock speed:
@@ -235,7 +235,7 @@ void ax08_seq_handle_input(uint8_t input_state) {
         //
         // Step 2 is handled by the state update function as the state machine needs to be in cycle state 0
         // for the turbo mode to be enabled.
-        if (i_selected_postscaler != 0 && state == AX08_SEQ_STATE_RUN_TURBO) {
+        if (i_selected_timer_config != 0 && state == AX08_SEQ_STATE_RUN_TURBO) {
             // Switch to run state.
             state = AX08_SEQ_STATE_RUN;
 
@@ -419,7 +419,7 @@ void ax08_seq_update_state() {
         case AX08_SEQ_STATE_RUN:
             // Check if we can enter the turbo run mode.
             // This is the case if we are currently in cycle state 0 and have selected the turbo clock (0).
-            if (cycle_state == 0 && i_selected_postscaler == 0) {
+            if (cycle_state == 0 && i_selected_timer_config == 0) {
                 // Disable state timer interrupts.
                 T2CONbits.TMR2ON = false;
                 TMR2IE = false;
@@ -475,11 +475,11 @@ int main() {
     }
 
     // Configure timer2 (state timer)
-    PIE1bits.TMR2IE = true;       // Enable match interrupts.
-    PR2 = STATE_TIMER_PERIOD - 1; // Configure timer period.
-    T2CONbits.T2OUTPS = 0b0111;   // Use a postscaler of 1:8
-    T2CONbits.T2CKPS = 0b00;      // Use a prescaler of 1:1
-    T2CONbits.TMR2ON = true;      // Enable the timer.
+    PIE1bits.TMR2IE = true;          // Enable match interrupts.
+    PR2 = STATE_TIMER_HW_PERIOD - 1; // Configure timer period.
+    T2CONbits.T2OUTPS = 0b0000;      // Use a postscaler of 1:1
+    T2CONbits.T2CKPS = 0b00;         // Use a prescaler of 1:1
+    T2CONbits.TMR2ON = true;         // Enable the timer.
 
     // Configure timer4 (input timer) (This config results in an input poll every ~5ms)
     PIE3bits.TMR4IE = true;       // Enable match interrupts.
@@ -516,8 +516,8 @@ int main() {
             ax08_seq_run_instruction_turbo();
         } else {
             // Handle state timer event.
-            if (unscaled_time >= STATE_TIMER_PS[i_selected_postscaler]) {
-                unscaled_time = 0;
+            if (state_timer_sw_value >= STATE_TIMER_SW_PERIOD[i_selected_timer_config]) {
+                state_timer_sw_value = 0;
 
                 // Update the sequencer state.
                 ax08_seq_update_state();
@@ -535,7 +535,7 @@ void __interrupt() ISR() {
     // Handle timer2 match interrupt. (State timer).
     if (TMR2IE && TMR2IF) {
         // Increment software timer.
-        ++unscaled_time;
+        ++state_timer_sw_value;
 
         // Clear interrupt flag.
         TMR2IF = 0;
