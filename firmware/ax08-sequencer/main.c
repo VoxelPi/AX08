@@ -313,6 +313,10 @@ void ax08_seq_run_step() {
     Runs a full cycle as fast as possible.
 */
 void ax08_seq_run_instruction_turbo() {
+    // Deactivate interrupts during the cycle so that the timings are perfect.
+    // The method only takes ~55µs, so this does not affect other functions in a meaningful way.
+    GIE = false;
+
     // FREEZE INSTRUCTION
     PIN_STORE_OUTPUT = false;
     PIN_FREEZE_WORD = true;
@@ -327,7 +331,7 @@ void ax08_seq_run_instruction_turbo() {
     PIN_FREEZE_OPCODE = false;
     PIN_HOLD_OUTPUT = true;
     PIN_INCREMENT_PC = true;
-    __delay_us(5);
+    __delay_us(4);
 
     // INCREMENT PC
     if (!PIN_BREAK) {
@@ -337,26 +341,29 @@ void ax08_seq_run_instruction_turbo() {
     }
     PIN_HOLD_OUTPUT = false;
     PIN_STORE_PC = true;
-    __delay_us(5);
+    __delay_us(4);
 
     // STORE PC
     PIN_INCREMENT_PC = false;
     PIN_STORE_PC = false;
-    __delay_us(5);
+    __delay_us(4);
 
     // STORE RESULT
     #ifdef BUGFIX_SKIP_BREAK_STORE
     if (PIN_BREAK) {
         PIN_STORE_OUTPUT = true;
-        __delay_us(20);
+        __delay_us(16);
     }
     #else
         PIN_STORE_OUTPUT = true;
-        __delay_us(20);
+        __delay_us(16);
     #endif
 
     // RESET
     PIN_STORE_OUTPUT = false;
+
+    // Re-activate interrupts.
+    GIE = true;
 }
 
 /**
