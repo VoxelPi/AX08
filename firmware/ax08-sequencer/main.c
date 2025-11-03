@@ -1,3 +1,7 @@
+/*
+    Sequencer version 0.2.1
+ */
+
 // CONFIG1
 #pragma config FOSC = INTOSC    // Oscillator Selection (INTOSC oscillator: I/O function on CLKIN pin)
 #pragma config WDTE = OFF       // Watchdog Timer Enable (WDT disabled)
@@ -259,6 +263,7 @@ void ax08_seq_run_step() {
         case 1:
             PIN_FREEZE_WORD = false;
             PIN_FREEZE_OPCODE = true;
+            PIN_HOLD_OUTPUT = false;
             break;
         case 2:
             PIN_FREEZE_OPCODE = false;
@@ -273,7 +278,6 @@ void ax08_seq_run_step() {
                 state = AX08_SEQ_STATE_RUN_INSTRUCTION;
             }
 
-            PIN_HOLD_OUTPUT = false;
             PIN_STORE_PC = true;
             break;
         case 4:
@@ -294,7 +298,7 @@ void ax08_seq_run_step() {
         case 6: // Reset mode.
             PIN_FREEZE_WORD = false;
             PIN_FREEZE_OPCODE = false;
-            PIN_HOLD_OUTPUT = false;
+            PIN_HOLD_OUTPUT = true;
             PIN_INCREMENT_PC = false;
             PIN_STORE_PC = false;
             PIN_STORE_OUTPUT = false;
@@ -325,6 +329,7 @@ void ax08_seq_run_instruction_turbo() {
     // FREEZE OPCODE
     PIN_FREEZE_WORD = false;
     PIN_FREEZE_OPCODE = true;
+    PIN_HOLD_OUTPUT = false;
     __delay_us(10);
 
     // FREEZE RESULT
@@ -340,7 +345,6 @@ void ax08_seq_run_instruction_turbo() {
         // Switch to idle state but finish running this instruction.
         state = AX08_SEQ_STATE_IDLE;
     }
-    PIN_HOLD_OUTPUT = false;
     PIN_STORE_PC = true;
     __delay_us(2);
     _delay(3);
