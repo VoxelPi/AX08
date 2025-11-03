@@ -332,9 +332,7 @@ void ax08_seq_run_instruction_turbo() {
     PIN_HOLD_OUTPUT = true;
     PIN_INCREMENT_PC = true;
     __delay_us(2);
-    NOP();
-    NOP();
-    NOP();
+    _delay(3);
 
     // INCREMENT PC
     if (!PIN_BREAK) {
@@ -345,17 +343,13 @@ void ax08_seq_run_instruction_turbo() {
     PIN_HOLD_OUTPUT = false;
     PIN_STORE_PC = true;
     __delay_us(2);
-    NOP();
-    NOP();
-    NOP();
+    _delay(3);
 
     // STORE PC
     PIN_INCREMENT_PC = false;
     PIN_STORE_PC = false;
     __delay_us(2);
-    NOP();
-    NOP();
-    NOP();
+    _delay(3);
 
     // STORE RESULT
     #ifdef BUGFIX_SKIP_BREAK_STORE
