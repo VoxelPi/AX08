@@ -1,5 +1,5 @@
 /*
-    Sequencer version 0.2.2
+    Sequencer version 0.2.3
  */
 
 // CONFIG1
@@ -275,6 +275,7 @@ void ax08_seq_run_step() {
         case 1:
             PIN_FREEZE_WORD = false;
             PIN_FREEZE_OPCODE = true;
+            _delay(4);
             PIN_HOLD_OUTPUT = false;
             break;
         case 2:
@@ -341,8 +342,10 @@ void ax08_seq_run_instruction_turbo() {
     // FREEZE OPCODE
     PIN_FREEZE_WORD = false;
     PIN_FREEZE_OPCODE = true;
+    _delay(4);
     PIN_HOLD_OUTPUT = false;
-    __delay_us(10);
+    __delay_us(9);
+    _delay(4);
 
     // FREEZE RESULT
     PIN_FREEZE_OPCODE = false;
