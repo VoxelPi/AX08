@@ -1,5 +1,5 @@
 /*
-    Sequencer version 0.2.1
+    Sequencer version 0.2.2
  */
 
 // CONFIG1
@@ -76,7 +76,7 @@
     - 1 Hz
 */
 #define STATE_TIMER_HW_PERIOD 127                                                                       // Timer2 period in 1/8 µs.
-const uint16_t STATE_TIMER_SW_PERIOD[] = { 9, 90, 9000 };                                   // Clock postscalers.  (20kHz tubro, 100Hz, 1Hz)
+const uint16_t STATE_TIMER_SW_PERIOD[] = { 9, 9, 90, 9000 };                            // Clock postscalers.  (20kHz tubro, 1kHz, 100Hz, 1Hz)
 const uint8_t N_STATE_TIMER_CONFIGS = sizeof(STATE_TIMER_SW_PERIOD) / sizeof(STATE_TIMER_SW_PERIOD[0]); // Number of post scalers.
 uint8_t i_selected_timer_config = 0;                                                                    // The selected sw timer period.
 volatile uint16_t state_timer_sw_value = 0;                                                             // The value of the sw timer.
