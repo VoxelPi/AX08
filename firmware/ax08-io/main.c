@@ -37,7 +37,7 @@
 const char *INIT_MESSAGE =
 "\n _____ __ __     ___ ___ "
 "\n|  _  |  |  |___|   | . |   IO UNIT"
-"\n|     |-   -|___| | | . |   Version: 0.2.0"
+"\n|     |-   -|___| | | . |   Version: 0.3.0"
 "\n|__|__|__|__|   |___|___|   Commit: " STR(AX08_IO_FW_GIT_COMMIT)
 "\n"
 "\n";
@@ -100,8 +100,12 @@ volatile ring_buffer_8_t tx_buffer = {
     .data = tx_buffer_data,
 };
 
+
+
+#pragma region Library Functions
+
 // Sends a single character over UART.
-void send_character(uint8_t data) {
+inline void send_character(uint8_t data) {
     // Push the new data to the TX buffer.
     tx_buffer.data[tx_buffer.i_write++] = data;
     #if TX_BUFFER_SIZE != 256
@@ -109,11 +113,11 @@ void send_character(uint8_t data) {
         tx_buffer.i_write = 0;
     }
     #endif
+
+    // Enable UART TX interrupts. If the flag was previously cleared
+    // then this will cause the processor to immediately jump into the ISR.
+    TXIE = true;
 }
-
-
-
-#pragma region Library Functions
 
 // Sends a string over UART.
 void send_string(const char* message) {
@@ -122,11 +126,7 @@ void send_string(const char* message) {
     }
 }
 
-uint8_t read_word() {
-    return (PORTA & 0x0F) | (PORTB & 0xF0);
-}
-
-void write_word(const uint8_t word) {
+inline void write_word(const uint8_t word) {
     LATA &= (word | 0xF0);
     LATA |= (word & 0x0F);
     LATB &= (word | 0x0F);
@@ -188,14 +188,12 @@ int main() {
 
     // Main loop
     while (true) {
-        statemachine_entrypoint:
-        // Configure data pins as inputs.
-        TRISA  = 0b10111111;
-        TRISB  = 0b11111011;
+        if (PIN_HOLD) {
+            continue;
+        }
 
-        // Handle transmit buffer.
-        // Enable tx interrupts if there is data to be send.
-        TXIE = tx_buffer.i_read != tx_buffer.i_write;
+        // Time-criticial part starts, disable interrupts.
+        GIE = false;
 
         // POLL OPERATION.
         if (!PIN_OP_POLL) {
@@ -207,20 +205,20 @@ int main() {
             bool is_rx_available = rx_buffer.i_read != rx_buffer.i_write;
             write_word(is_rx_available);
 
-            // Wait for hold to be set.
-            while (!PIN_HOLD) {
-                // Check if opcode is no longer active.
-                if (PIN_OP_POLL) {
-                    goto statemachine_entrypoint;
-                }
-            }
+            // Time-criticial part is over, interrupts may be handled again.
+            GIE = true;
 
-            // Wait for hold to be cleared.
-            while (PIN_HOLD)
+            // Wait for hold to be set.
+            while (!PIN_HOLD)
                 ;
+            _delay(4);
+
+            // Configure data pins as inputs.
+            TRISA  = 0b10111111;
+            TRISB  = 0b11111011;
 
             // Reset state machine.
-            goto statemachine_entrypoint;
+            continue;
         }
 
         // READ OPERATION.
@@ -232,56 +230,56 @@ int main() {
             // Write next rx data from buffer if available.
             bool is_rx_available = rx_buffer.i_read != rx_buffer.i_write;
             if (is_rx_available) {
-                uint8_t word = rx_buffer.data[rx_buffer.i_read];
+                uint8_t word = rx_buffer.data[rx_buffer.i_read++];
+                if (rx_buffer.i_read >= RX_BUFFER_SIZE) {
+                    rx_buffer.i_read = 0;
+                }
                 write_word(word);
             } else {
                 write_word(0);
             }
 
+            // Time-criticial part is over, interrupts may be handled again.
+            GIE = true;
+
             // Wait for hold to be set.
-            while (!PIN_HOLD) {
-                // Check if opcode is no longer active.
-                if (PIN_OP_READ) {
-                    goto statemachine_entrypoint;
-                }
-            }
-
-            // Acknowledge read.
-            if (is_rx_available) {
-                ++rx_buffer.i_read;
-                if (rx_buffer.i_read >= RX_BUFFER_SIZE) {
-                    rx_buffer.i_read = 0;
-                }
-            }
-
-            // Wait for hold to be cleared.
-            while (PIN_HOLD)
+            while (!PIN_HOLD)
                 ;
+            _delay(4);
+
+            // Configure data pins as inputs.
+            TRISA  = 0b10111111;
+            TRISB  = 0b11111011;
 
             // Reset state machine.
-            goto statemachine_entrypoint;
+            continue;
         }
 
         // WRITE OPERATION.
         if (!PIN_OP_WRITE) {
-            // Wait for hold instruction.
-            while (!PIN_HOLD) {
-                // Check if opcode is no longer active.
-                if (PIN_OP_WRITE) {
-                    goto statemachine_entrypoint;
-                }
-            }
+            // Read the current data word.
+            uint8_t data = (PORTA & 0x0F) | (PORTB & 0xF0);
 
-            uint8_t data = read_word();
+            // Send the data word.
             send_character(data);
 
-            // Wait for hold to be cleared.
-            while (PIN_HOLD)
+            // Time-criticial part is over, interrupts may be handled again.
+            GIE = true;
+
+            // Wait for hold to be set.
+            while (!PIN_HOLD)
                 ;
 
             // Reset state machine.
-            goto statemachine_entrypoint;
+            continue;
         }
+
+        // No opcode is asserted, resume operation.
+        GIE = true;
+
+        // Wait for hold to be set.
+        while (!PIN_HOLD)
+            ;
     }
 }
 
