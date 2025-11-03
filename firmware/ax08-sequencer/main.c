@@ -177,6 +177,10 @@ void ax08_seq_handle_input(uint8_t input_state) {
         LATB &= 0b00000100;
         state = AX08_SEQ_STATE_RUN_INSTRUCTION;
         cycle_state = 0;
+
+        // Enable state timer & state timer interrupts.
+        TMR2IE = true;
+        T2CONbits.TMR2ON = true;
     }
     if (input_debug_mode) {
         if (enabled) {
@@ -213,6 +217,10 @@ void ax08_seq_handle_input(uint8_t input_state) {
         // and configure the statemachine to execute exactly one instruction.
         if (enabled) {
             state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+
+            // Enable state timer & state timer interrupts.
+            TMR2IE = true;
+            T2CONbits.TMR2ON = true;
         }
     }
     if (input_run_step) {
@@ -220,6 +228,10 @@ void ax08_seq_handle_input(uint8_t input_state) {
         // and configure the statemachine to execute exactly one step.
         if (enabled) {
             state = AX08_SEQ_STATE_RUN_STEP;
+
+            // Enable state timer & state timer interrupts.
+            TMR2IE = true;
+            T2CONbits.TMR2ON = true;
         }
     }
     if (input_change_speed) {
