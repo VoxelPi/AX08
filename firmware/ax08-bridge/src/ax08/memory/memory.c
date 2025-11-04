@@ -31,6 +31,57 @@ const unsigned int PINS_MEMORY_DATA_ADDRESS[2] = {18, 19};
 #define PIN_MEMORY_OPCODE 26 // Opcode low = Write
 #define PIN_MEMORY_HOLD  27 // Hold rising -> take input
 
+/**
+ * The default program that is loaded when the computer is first powered on.
+ * This program prints the headers found at 0x8000 / 0x8100 to IO port 0 / 1
+ * and then simply echoes the user input.
+ */
+const uint32_t DEFAULT_PROGRAM[] = {
+    0x00088000,
+    0x08000000,
+    0xa0050000,
+    0x02200007,
+    0xd0090001,
+    0x40010100,
+    0x00000002,
+    0x00088100,
+    0x08000000,
+    0xa0050000,
+    0x0220000e,
+    0xf0090001,
+    0x40010100,
+    0x00000009,
+    0xc0000000,
+    0x02000014,
+    0xc8000000,
+    0xd0090000,
+    0x48010d00,
+    0xd208000a,
+    0xe0000000,
+    0x0200001a,
+    0xe8000000,
+    0xf0090000,
+    0x48010d00,
+    0xf208000a,
+    0x0000000e,
+};
+
+const char *STARTUP_MESSAGE_IO0 =
+"\n _____ __ __     ___ ___ "
+"\n|  _  |  |  |___|   | . |   Version 0.1.0"
+"\n|     |-   -|___| | | . |   IO Port 0"
+"\n|__|__|__|__|   |___|___|   Docs: https://axiom.voxelpi.net/"
+"\n"
+"\n";
+
+const char *STARTUP_MESSAGE_IO1 =
+"\n _____ __ __     ___ ___ "
+"\n|  _  |  |  |___|   | . |   Version 0.1.0"
+"\n|     |-   -|___| | | . |   IO Port 1"
+"\n|__|__|__|__|   |___|___|   Docs: https://axiom.voxelpi.net/"
+"\n"
+"\n";
+
 volatile AX08MemoryUnit ax08_memory_unit;
 
 typedef union byteint16_t {
@@ -207,6 +258,19 @@ void ax08_memory_init() {
     memset((void*)ax08_memory_unit.instruction_words, 0, AX08_N_INSTRUCTION_WORDS * sizeof(uint32_t));
     memset((void*)ax08_memory_unit.data_words, 0, AX08_N_DATA_WORDS * sizeof(uint8_t));
     memset((void*)ax08_memory_unit.program_chunk_state, 0xFF, AX08_PROGRAM_CHUNK_COUNT / 8);
+
+    // Load default program.
+    ax08_memory_unit.active = true;
+    ax08_memory_unit.valid_program = true;
+    memcpy((void*)(ax08_memory_unit.instruction_words + 0x0000), DEFAULT_PROGRAM, sizeof(DEFAULT_PROGRAM));
+    // memcpy((void*)(ax08_memory_unit.instruction_words + 0x8000), STARTUP_MESSAGE_IO0, strlen(STARTUP_MESSAGE_IO0) + 1);
+    for (unsigned int i = 0; i < strlen(STARTUP_MESSAGE_IO0) + 1; ++i) {
+        (ax08_memory_unit.instruction_words + 0x8000)[i] = STARTUP_MESSAGE_IO0[i];
+    }
+    // memcpy((void*)(ax08_memory_unit.instruction_words + 0x8100), STARTUP_MESSAGE_IO1, strlen(STARTUP_MESSAGE_IO1) + 1);
+    for (unsigned int i = 0; i < strlen(STARTUP_MESSAGE_IO1) + 1; ++i) {
+        (ax08_memory_unit.instruction_words + 0x8100)[i] = STARTUP_MESSAGE_IO1[i];
+    }
 
     // Configure extra pins.
     gpio_init(PIN_MEMORY_OPCODE);
