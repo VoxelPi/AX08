@@ -1,5 +1,5 @@
 /*
-    Sequencer version 0.2.4
+    Sequencer version 0.2.5
  */
 
 // CONFIG1
@@ -359,6 +359,10 @@ void ax08_seq_run_instruction_turbo() {
         // Handle break opcode.
         // Switch to idle state but finish running this instruction.
         state = AX08_SEQ_STATE_IDLE;
+
+        // Enable state timer & state timer interrupts.
+        TMR2IE = true;
+        T2CONbits.TMR2ON = true;
     }
     PIN_STORE_PC = true;
     __delay_us(2);
