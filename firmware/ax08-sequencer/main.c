@@ -1,5 +1,5 @@
 /*
-    Sequencer version 0.2.3
+    Sequencer version 0.2.4
  */
 
 // CONFIG1
@@ -352,7 +352,7 @@ void ax08_seq_run_instruction_turbo() {
     PIN_HOLD_OUTPUT = true;
     PIN_INCREMENT_PC = true;
     __delay_us(2);
-    _delay(3);
+    _delay(6);
 
     // INCREMENT PC
     if (!PIN_BREAK) {
@@ -362,13 +362,13 @@ void ax08_seq_run_instruction_turbo() {
     }
     PIN_STORE_PC = true;
     __delay_us(2);
-    _delay(3);
+    _delay(6);
 
     // STORE PC
     PIN_INCREMENT_PC = false;
     PIN_STORE_PC = false;
     __delay_us(2);
-    _delay(3);
+    _delay(6);
 
     // STORE RESULT
     #ifdef BUGFIX_SKIP_BREAK_STORE
@@ -439,10 +439,10 @@ void ax08_seq_update_state() {
 
                 // Enable turbo run state.
                 state = AX08_SEQ_STATE_RUN_TURBO;
+            } else {
+                // Run a single step.
+                ax08_seq_run_step();
             }
-
-            // Run a single step.
-            ax08_seq_run_step();
             break;
 
         case AX08_SEQ_STATE_RUN_TURBO:
