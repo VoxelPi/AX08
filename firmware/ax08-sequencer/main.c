@@ -275,8 +275,6 @@ void ax08_seq_run_step() {
         case 1:
             PIN_FREEZE_WORD = false;
             PIN_FREEZE_OPCODE = true;
-            _delay(4);
-            PIN_HOLD_OUTPUT = false;
             break;
         case 2:
             PIN_FREEZE_OPCODE = false;
@@ -291,6 +289,8 @@ void ax08_seq_run_step() {
                 state = AX08_SEQ_STATE_RUN_INSTRUCTION;
             }
 
+            PIN_HOLD_OUTPUT = false;
+            _delay(4);
             PIN_STORE_PC = true;
             break;
         case 4:
@@ -311,7 +311,7 @@ void ax08_seq_run_step() {
         case 6: // Reset mode.
             PIN_FREEZE_WORD = false;
             PIN_FREEZE_OPCODE = false;
-            PIN_HOLD_OUTPUT = true;
+            PIN_HOLD_OUTPUT = false;
             PIN_INCREMENT_PC = false;
             PIN_STORE_PC = false;
             PIN_STORE_OUTPUT = false;
@@ -337,22 +337,18 @@ void ax08_seq_run_instruction_turbo() {
     // FREEZE INSTRUCTION
     PIN_STORE_OUTPUT = false;
     PIN_FREEZE_WORD = true;
-    __delay_us(10);
+    __delay_us(2);
 
     // FREEZE OPCODE
     PIN_FREEZE_WORD = false;
     PIN_FREEZE_OPCODE = true;
-    _delay(4);
-    PIN_HOLD_OUTPUT = false;
-    __delay_us(9);
-    _delay(4);
+    __delay_us(14);
 
     // FREEZE RESULT
     PIN_FREEZE_OPCODE = false;
     PIN_HOLD_OUTPUT = true;
     PIN_INCREMENT_PC = true;
-    __delay_us(2);
-    _delay(6);
+    __delay_us(13);
 
     // INCREMENT PC
     if (!PIN_BREAK) {
@@ -364,26 +360,26 @@ void ax08_seq_run_instruction_turbo() {
         TMR2IE = true;
         T2CONbits.TMR2ON = true;
     }
+    PIN_HOLD_OUTPUT = false;
+    _delay(4);
     PIN_STORE_PC = true;
-    __delay_us(2);
-    _delay(6);
+    _delay(4);
 
     // STORE PC
     PIN_INCREMENT_PC = false;
     PIN_STORE_PC = false;
-    __delay_us(2);
-    _delay(6);
+    _delay(4);
 
     // STORE RESULT
     #ifdef BUGFIX_SKIP_BREAK_STORE
     if (PIN_BREAK) {
         PIN_STORE_OUTPUT = true;
-        __delay_us(16);
     }
     #else
         PIN_STORE_OUTPUT = true;
-        __delay_us(16);
     #endif
+    __delay_us(13);
+    _delay(6);
 
     // RESET
     PIN_STORE_OUTPUT = false;
