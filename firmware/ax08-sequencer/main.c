@@ -1,5 +1,5 @@
 /*
-    Sequencer version 0.2.5
+    Sequencer version 0.2.6
  */
 
 // CONFIG1
@@ -348,7 +348,7 @@ void ax08_seq_run_instruction_turbo() {
     PIN_FREEZE_OPCODE = false;
     PIN_HOLD_OUTPUT = true;
     PIN_INCREMENT_PC = true;
-    __delay_us(13);
+    __delay_us(10);
 
     // INCREMENT PC
     if (!PIN_BREAK) {
@@ -378,7 +378,7 @@ void ax08_seq_run_instruction_turbo() {
     #else
         PIN_STORE_OUTPUT = true;
     #endif
-    __delay_us(13);
+    __delay_us(16);
     _delay(6);
 
     // RESET
