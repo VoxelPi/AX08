@@ -70,16 +70,23 @@
 
 /*
     Variables related to the clock speed.
-    Three clock speed preset are defined:
-    - 5kHz
-    - 100 Hz
-    - 1 Hz
 */
-#define STATE_TIMER_HW_PERIOD 127                                                                       // Timer2 period in 1/8 µs.
-const uint16_t STATE_TIMER_SW_PERIOD[] = { 9, 9, 90, 9000 };                            // Clock postscalers.  (20kHz tubro, 1kHz, 100Hz, 1Hz)
-const uint8_t N_STATE_TIMER_CONFIGS = sizeof(STATE_TIMER_SW_PERIOD) / sizeof(STATE_TIMER_SW_PERIOD[0]); // Number of post scalers.
-uint8_t i_selected_timer_config = 0;                                                                    // The selected sw timer period.
-volatile uint16_t state_timer_sw_value = 0;                                                             // The value of the sw timer.
+#define STATE_TIMER_HW_PERIOD 127    // Timer2 period in 1/8 µs.
+#define N_MAX_STATE_TIMER_CONFIGS 16 // Max. number of state timer configurations.
+
+__eeprom uint8_t eeprom_n_state_timer_configs = 5;
+__eeprom uint16_t eeprom_state_timer_sw_periods[N_MAX_STATE_TIMER_CONFIGS] = {
+    9,
+    9,    // 1000 Hz
+    90,   // 100  Hz
+    900,  // 10   Hz
+    9000, // 1    Hz
+};
+
+uint8_t n_state_timer_configs = 0;                          // Number of sw post scalers.
+uint16_t state_timer_sw_periods[N_MAX_STATE_TIMER_CONFIGS]; // Number of post scalers.
+uint8_t i_selected_timer_config = 0;                        // The selected sw timer period.
+volatile uint16_t state_timer_sw_value = 0;                 // The value of the sw timer.
 
 /*
     Variables related to the state machine.
@@ -237,7 +244,7 @@ void ax08_seq_handle_input(uint8_t input_state) {
     if (input_change_speed) {
         // Cycle state timer post scaler.
         ++i_selected_timer_config;
-        if (i_selected_timer_config >= N_STATE_TIMER_CONFIGS) {
+        if (i_selected_timer_config >= n_state_timer_configs) {
             i_selected_timer_config = 0;
         }
 
@@ -468,6 +475,12 @@ int main() {
     // Enable global weak pull ups.
     OPTION_REGbits.nWPUEN = false;
 
+    // Load the configuration of the state timer from the eeprom.
+    n_state_timer_configs = eeprom_n_state_timer_configs;
+    for (int i = 0; i < n_state_timer_configs; ++i) {
+        state_timer_sw_periods[i] = eeprom_state_timer_sw_periods[i];
+    }
+
     // Initialize A pins.
     PORTA  = 0b00000000;
     LATA   = 0b00000000;
@@ -529,7 +542,7 @@ int main() {
             ax08_seq_run_instruction_turbo();
         } else {
             // Handle state timer event.
-            if (state_timer_sw_value >= STATE_TIMER_SW_PERIOD[i_selected_timer_config]) {
+            if (state_timer_sw_value >= state_timer_sw_periods[i_selected_timer_config]) {
                 state_timer_sw_value = 0;
 
                 // Update the sequencer state.
