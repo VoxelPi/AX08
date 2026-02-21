@@ -18,8 +18,8 @@ uint16_t state_timer_sw_periods[N_MAX_STATE_TIMER_CONFIGS];
 uint8_t i_selected_timer_config = 0;
 volatile uint16_t state_timer_sw_value = 0;
 
-bool enabled = false;
-ax08_seq_state_t state = AX08_SEQ_STATE_IDLE;
+bool ax08_seq_enabled = false;
+ax08_seq_state_t ax08_seq_mode = AX08_SEQ_STATE_IDLE;
 uint8_t cycle_state = 0;
 bool reset_scheduled = true; // Schedule a reset during sequencer initialization.
 
@@ -66,7 +66,7 @@ void ax08_seq_run_instruction_turbo() {
     if (!PIN_BREAK) {
         // Handle break opcode.
         // Switch to idle state but finish running this instruction.
-        state = AX08_SEQ_STATE_IDLE;
+        ax08_seq_mode = AX08_SEQ_STATE_IDLE;
 
         // Enable state timer & state timer interrupts.
         TMR2IE = true;
@@ -121,7 +121,7 @@ void ax08_seq_run_step() {
             if (!PIN_BREAK) {
                 // Switch to run instruction state so that the current instruction is full executed
                 // before entering the idle state.
-                state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+                ax08_seq_mode = AX08_SEQ_STATE_RUN_INSTRUCTION;
             }
 
             PIN_HOLD_OUTPUT = false;
@@ -172,14 +172,14 @@ void ax08_seq_update_state() {
 
         // Next step should be a clear.
         cycle_state = 6;
-        state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+        ax08_seq_mode = AX08_SEQ_STATE_RUN_INSTRUCTION;
 
         // Skip remaining handler.
         return;
     }
 
     // Handle state updates.
-    switch (state) {
+    switch (ax08_seq_mode) {
         case AX08_SEQ_STATE_IDLE:
             // Do nothing.
             break;
@@ -187,7 +187,7 @@ void ax08_seq_update_state() {
         case AX08_SEQ_STATE_RUN_STEP:
             // Run a sigle step and change state to idle.
             ax08_seq_run_step();
-            state = AX08_SEQ_STATE_IDLE;
+            ax08_seq_mode = AX08_SEQ_STATE_IDLE;
             break;
 
         case AX08_SEQ_STATE_RUN_INSTRUCTION:
@@ -195,7 +195,7 @@ void ax08_seq_update_state() {
             // change the state to idle.
             ax08_seq_run_step();
             if (cycle_state == 0) {
-                state = AX08_SEQ_STATE_IDLE;
+                ax08_seq_mode = AX08_SEQ_STATE_IDLE;
             }
             break;
 
@@ -208,7 +208,7 @@ void ax08_seq_update_state() {
                 TMR2IE = false;
 
                 // Enable turbo run state.
-                state = AX08_SEQ_STATE_RUN_TURBO;
+                ax08_seq_mode = AX08_SEQ_STATE_RUN_TURBO;
             } else {
                 // Run a single step.
                 ax08_seq_run_step();
@@ -217,7 +217,7 @@ void ax08_seq_update_state() {
 
         case AX08_SEQ_STATE_RUN_TURBO:
             // This should never happen
-            state = AX08_SEQ_STATE_IDLE;
+            ax08_seq_mode = AX08_SEQ_STATE_IDLE;
             break;
     }
 }
@@ -228,7 +228,7 @@ void ax08_seq_handle_disable(void) {
 
     // Reset state.
     LATB &= 0b00000100;
-    state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+    ax08_seq_mode = AX08_SEQ_STATE_RUN_INSTRUCTION;
     cycle_state = 0;
 
     // Enable state timer & state timer interrupts.
@@ -247,15 +247,15 @@ void ax08_seq_action_reset(void) {
 
 void ax08_seq_action_toggle_debug_mode(void) {
     // Toggle debug mode.
-    switch (state) {
+    switch (ax08_seq_mode) {
         case AX08_SEQ_STATE_RUN:
             // Finish current instruction and then switch to idle.
-            state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+            ax08_seq_mode = AX08_SEQ_STATE_RUN_INSTRUCTION;
             break;
 
         case AX08_SEQ_STATE_RUN_TURBO:
             // Switch to idle state.
-            state = AX08_SEQ_STATE_IDLE;
+            ax08_seq_mode = AX08_SEQ_STATE_IDLE;
 
             // Enable state timer & state timer interrupts.
             TMR2IE = true;
@@ -266,7 +266,7 @@ void ax08_seq_action_toggle_debug_mode(void) {
             // Always switch to normal run state first, as the cycle state is not known
             // and the turbo run mode assumes the previously instruction to be fully processed.
             // We therefore switch to turbo run in the state update function.
-            state = AX08_SEQ_STATE_RUN;
+            ax08_seq_mode = AX08_SEQ_STATE_RUN;
             break;
     }
 }
@@ -274,8 +274,8 @@ void ax08_seq_action_toggle_debug_mode(void) {
 void ax08_seq_action_run_instruction(void) {
     // Enable debug mode if not already active,
     // and configure the statemachine to execute exactly one instruction.
-    if (enabled) {
-        state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+    if (ax08_seq_enabled) {
+        ax08_seq_mode = AX08_SEQ_STATE_RUN_INSTRUCTION;
 
         // Enable state timer & state timer interrupts.
         TMR2IE = true;
@@ -286,8 +286,8 @@ void ax08_seq_action_run_instruction(void) {
 void ax08_seq_action_run_step(void) {
     // Enable debug mode if not already active,
     // and configure the statemachine to execute exactly one step.
-    if (enabled) {
-        state = AX08_SEQ_STATE_RUN_STEP;
+    if (ax08_seq_enabled) {
+        ax08_seq_mode = AX08_SEQ_STATE_RUN_STEP;
 
         // Enable state timer & state timer interrupts.
         TMR2IE = true;
@@ -312,9 +312,9 @@ void ax08_seq_action_select_timer(uint8_t i_timer) {
     //
     // Step 2 is handled by the state update function as the state machine needs to be in cycle state 0
     // for the turbo mode to be enabled.
-    if (i_selected_timer_config != 0 && state == AX08_SEQ_STATE_RUN_TURBO) {
+    if (i_selected_timer_config != 0 && ax08_seq_mode == AX08_SEQ_STATE_RUN_TURBO) {
         // Switch to run state.
-        state = AX08_SEQ_STATE_RUN;
+        ax08_seq_mode = AX08_SEQ_STATE_RUN;
 
         // Enable state timer & state timer interrupts.
         TMR2IE = true;

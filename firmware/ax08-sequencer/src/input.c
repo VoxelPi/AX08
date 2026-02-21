@@ -59,14 +59,14 @@ void ax08_seq_handle_input(uint8_t input_state) {
     bool input_change_speed    = (input_falling_events & 0b00010000) != 0;
 
     // Update state pins
-    enabled = (input_state & 0b00000001) != 0;
+    ax08_seq_enabled = (input_state & 0b00000001) != 0;
 
     // Handle events.
     if (input_mode_disabled) {
         ax08_seq_handle_disable();
     }
     if (input_debug_mode) {
-        if (enabled) {
+        if (ax08_seq_enabled) {
             ax08_seq_action_toggle_debug_mode();
         } else {
             ax08_seq_action_reset();

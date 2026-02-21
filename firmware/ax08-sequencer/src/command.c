@@ -87,7 +87,7 @@ void ax08_seq_command_handle(void) {
     di();
     switch (command_id) {
         case AX08_COMMAND_TOOGLE_DEBUG_MODE:
-            if (enabled) {
+            if (ax08_seq_enabled) {
                 ax08_seq_action_toggle_debug_mode();
             } else {
                 ax08_seq_action_reset();

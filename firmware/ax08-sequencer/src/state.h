@@ -25,8 +25,8 @@ extern uint16_t state_timer_sw_periods[N_MAX_STATE_TIMER_CONFIGS]; // Number of 
 extern uint8_t i_selected_timer_config;                            // The selected sw timer period.
 extern volatile uint16_t state_timer_sw_value;                     // The value of the sw timer.
 
-extern bool enabled;           // If the computer is currently enabled.
-extern ax08_seq_state_t state; // The current state.
+extern bool ax08_seq_enabled;                          // If the computer is currently enabled.
+extern ax08_seq_state_t ax08_seq_mode;                 // The current sequencer state.
 extern uint8_t cycle_state;    // A number in [0, 5], representing the current cycle state.
 
 /**

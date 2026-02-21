@@ -86,7 +86,7 @@ int main() {
         }
 
         // Handle state events.
-        if (state == AX08_SEQ_STATE_RUN_TURBO) {
+        if (ax08_seq_mode == AX08_SEQ_STATE_RUN_TURBO) {
             ax08_seq_run_instruction_turbo();
         } else if (state_timer_sw_value >= state_timer_sw_periods[i_selected_timer_config]) {
             state_timer_sw_value = 0;
