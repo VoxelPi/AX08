@@ -1,0 +1,80 @@
+#pragma once
+
+#include <stdbool.h>
+#include <stdint.h>
+
+/*
+    Variables related to the clock speed.
+*/
+#define STATE_TIMER_HW_PERIOD 127    // Timer2 period in 1/8 µs.
+#define N_MAX_STATE_TIMER_CONFIGS 16 // Max. number of state timer configurations.
+
+/*
+    Variables related to the state machine.
+*/
+typedef enum ax08_seq_state {
+    AX08_SEQ_STATE_RUN_TURBO = 0,       // The sequencer is running in turbo mode.
+    AX08_SEQ_STATE_RUN = 1,             // The sequencer is running.
+    AX08_SEQ_STATE_RUN_INSTRUCTION = 2, // The sequencer is running one instruction.
+    AX08_SEQ_STATE_RUN_STEP = 3,        // The sequencer is running one step.
+    AX08_SEQ_STATE_IDLE = 4,            // The sequencer is waiting for further instructions.
+} ax08_seq_state_t;
+
+extern uint8_t n_state_timer_configs;                              // Number of sw post scalers.
+extern uint16_t state_timer_sw_periods[N_MAX_STATE_TIMER_CONFIGS]; // Number of post scalers.
+extern uint8_t i_selected_timer_config;                            // The selected sw timer period.
+extern volatile uint16_t state_timer_sw_value;                     // The value of the sw timer.
+
+extern bool enabled;
+extern ax08_seq_state_t state;    // The current state.
+extern uint8_t cycle_state;       // A number in [0, 5], representing the current cycle state.
+extern bool reset_scheduled;      // Schedule a reset during sequencer initialization.
+
+/**
+* Initializes the hardware used by the state module.
+*/
+void ax08_seq_state_init(void);
+
+/**
+    Performs a sequencer state update.
+*/
+void ax08_seq_update_state(void);
+
+/**
+    Runs a full cycle as fast as possible.
+*/
+void ax08_seq_run_instruction_turbo(void);
+
+
+
+#pragma region actions
+
+/**
+    Resets the computer.
+*/
+void ax08_seq_action_reset(void);
+
+/**
+    Toggles the debug mode of the computer.
+*/
+void ax08_seq_action_toggle_debug_mode(void);
+
+/**
+    Runs the next instruction.
+    If the computer is currently running, it pauses at the end of the current instruction.
+    If the computer is currently in debug-mode and in the middle of an instruction, the current instruction is finished.
+ */
+void ax08_seq_action_run_instruction(void);
+
+/**
+    Runs the next substep of the current instruction.
+    If the computer is currently running, it pauses at the end of the current substep of the current instruction.
+ */
+void ax08_seq_action_run_step(void);
+
+/**
+    Selects the timer that should be used for the computer.
+*/
+void ax08_seq_action_select_timer(uint8_t i_timer);
+
+#pragma endregion actions
