@@ -63,17 +63,7 @@ void ax08_seq_handle_input(uint8_t input_state) {
 
     // Handle events.
     if (input_mode_disabled) {
-        // Schedule a reset.
-        reset_scheduled = true;
-
-        // Reset state.
-        LATB &= 0b00000100;
-        state = AX08_SEQ_STATE_RUN_INSTRUCTION;
-        cycle_state = 0;
-
-        // Enable state timer & state timer interrupts.
-        TMR2IE = true;
-        T2CONbits.TMR2ON = true;
+        ax08_seq_handle_disable();
     }
     if (input_debug_mode) {
         if (enabled) {

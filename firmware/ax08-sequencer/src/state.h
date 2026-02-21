@@ -25,10 +25,9 @@ extern uint16_t state_timer_sw_periods[N_MAX_STATE_TIMER_CONFIGS]; // Number of 
 extern uint8_t i_selected_timer_config;                            // The selected sw timer period.
 extern volatile uint16_t state_timer_sw_value;                     // The value of the sw timer.
 
-extern bool enabled;
-extern ax08_seq_state_t state;    // The current state.
-extern uint8_t cycle_state;       // A number in [0, 5], representing the current cycle state.
-extern bool reset_scheduled;      // Schedule a reset during sequencer initialization.
+extern bool enabled;           // If the computer is currently enabled.
+extern ax08_seq_state_t state; // The current state.
+extern uint8_t cycle_state;    // A number in [0, 5], representing the current cycle state.
 
 /**
 * Initializes the hardware used by the state module.
@@ -45,17 +44,23 @@ void ax08_seq_update_state(void);
 */
 void ax08_seq_run_instruction_turbo(void);
 
+/**
+    Handles the event when the computer state switches from enabled to disabled.
+*/
+void ax08_seq_handle_disable(void);
 
 
 #pragma region actions
 
 /**
     Resets the computer.
+    Should only be called if the computer is currently disabled.
 */
 void ax08_seq_action_reset(void);
 
 /**
     Toggles the debug mode of the computer.
+    Should only be called if the computer is currently enabled.
 */
 void ax08_seq_action_toggle_debug_mode(void);
 

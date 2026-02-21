@@ -21,7 +21,7 @@ volatile uint16_t state_timer_sw_value = 0;
 bool enabled = false;
 ax08_seq_state_t state = AX08_SEQ_STATE_IDLE;
 uint8_t cycle_state = 0;
-bool reset_scheduled = true;
+bool reset_scheduled = true; // Schedule a reset during sequencer initialization.
 
 bool previous_break_state = false; // Previous state of the break pin.
 bool state_changed = true; // If a new state is available to be processed by the main loop.
@@ -220,6 +220,20 @@ void ax08_seq_update_state() {
             state = AX08_SEQ_STATE_IDLE;
             break;
     }
+}
+
+void ax08_seq_handle_disable(void) {
+    // Schedule a reset.
+    reset_scheduled = true;
+
+    // Reset state.
+    LATB &= 0b00000100;
+    state = AX08_SEQ_STATE_RUN_INSTRUCTION;
+    cycle_state = 0;
+
+    // Enable state timer & state timer interrupts.
+    TMR2IE = true;
+    T2CONbits.TMR2ON = true;
 }
 
 
