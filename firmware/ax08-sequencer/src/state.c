@@ -20,7 +20,7 @@ volatile uint16_t state_timer_sw_value = 0;
 
 bool ax08_seq_enabled = false;
 ax08_seq_state_t ax08_seq_mode = AX08_SEQ_STATE_IDLE;
-uint8_t cycle_state = 0;
+ax08_instruction_step_t ax08_instruction_state = AX08_INSTRUCTION_STEP_IDLE;
 bool reset_scheduled = true; // Schedule a reset during sequencer initialization.
 
 bool previous_break_state = false; // Previous state of the break pin.
@@ -102,21 +102,29 @@ void ax08_seq_run_instruction_turbo() {
 
 void ax08_seq_run_step() {
     // Execute next cycle step.
-    switch (cycle_state) {
-        case 0:
+    switch (ax08_instruction_state) {
+        case AX08_INSTRUCTION_STEP_IDLE:
+            ax08_instruction_state = AX08_INSTRUCTION_STEP_FETCH;
             PIN_STORE_OUTPUT = false;
             PIN_FREEZE_WORD = true;
             break;
-        case 1:
+
+        case AX08_INSTRUCTION_STEP_FETCH:
+            ax08_instruction_state = AX08_INSTRUCTION_STEP_EXECUTE;
             PIN_FREEZE_WORD = false;
             PIN_FREEZE_OPCODE = true;
             break;
-        case 2:
+
+        case AX08_INSTRUCTION_STEP_EXECUTE:
+            ax08_instruction_state = AX08_INSTRUCTION_STEP_PC_INCREMENT;
             PIN_FREEZE_OPCODE = false;
             PIN_HOLD_OUTPUT = true;
             PIN_INCREMENT_PC = true;
             break;
-        case 3:
+
+        case AX08_INSTRUCTION_STEP_PC_INCREMENT:
+            ax08_instruction_state = AX08_INSTRUCTION_STEP_PC_STORE;
+
             // Handle break opcode.
             if (!PIN_BREAK) {
                 // Switch to run instruction state so that the current instruction is full executed
@@ -128,11 +136,16 @@ void ax08_seq_run_step() {
             _delay(4);
             PIN_STORE_PC = true;
             break;
-        case 4:
+
+        case AX08_INSTRUCTION_STEP_PC_STORE:
+            ax08_instruction_state = AX08_INSTRUCTION_STEP_PC_PAUSE;
             PIN_INCREMENT_PC = false;
             PIN_STORE_PC = false;
             break;
-        case 5:
+
+        case AX08_INSTRUCTION_STEP_PC_PAUSE:
+            ax08_instruction_state = AX08_INSTRUCTION_STEP_STORE;
+
             // FIX for hardware bug on AX08L: https://github.com/VoxelPi/AX08/issues/2
             // Skip the store pulse, as it would clear a register.
             #ifdef BUGFIX_SKIP_BREAK_STORE
@@ -143,21 +156,18 @@ void ax08_seq_run_step() {
 
             PIN_STORE_OUTPUT = true;
             break;
-        case 6: // Reset mode.
+
+        case AX08_INSTRUCTION_STEP_STORE:
+        case AX08_INSTRUCTION_STEP_RESET:
+        default:
+            ax08_instruction_state = AX08_INSTRUCTION_STEP_IDLE;
             PIN_FREEZE_WORD = false;
             PIN_FREEZE_OPCODE = false;
             PIN_HOLD_OUTPUT = false;
             PIN_INCREMENT_PC = false;
             PIN_STORE_PC = false;
             PIN_STORE_OUTPUT = false;
-        default:
             break;
-    }
-
-    // Increment cycle state.
-    ++cycle_state;
-    if (cycle_state >= 7) {
-        cycle_state = 0;
     }
 }
 
@@ -171,7 +181,7 @@ void ax08_seq_update_state() {
         PIN_STORE_PC = true;
 
         // Next step should be a clear.
-        cycle_state = 6;
+        ax08_instruction_state = AX08_INSTRUCTION_STEP_RESET;
         ax08_seq_mode = AX08_SEQ_STATE_RUN_INSTRUCTION;
 
         // Skip remaining handler.
@@ -194,7 +204,7 @@ void ax08_seq_update_state() {
             // Run a single step. If that finishes an instruction (= new cycle state is 0),
             // change the state to idle.
             ax08_seq_run_step();
-            if (cycle_state == 0) {
+            if (ax08_instruction_state == AX08_INSTRUCTION_STEP_IDLE) {
                 ax08_seq_mode = AX08_SEQ_STATE_IDLE;
             }
             break;
@@ -202,7 +212,7 @@ void ax08_seq_update_state() {
         case AX08_SEQ_STATE_RUN:
             // Check if we can enter the turbo run mode.
             // This is the case if we are currently in cycle state 0 and have selected the turbo clock (0).
-            if (cycle_state == 0 && i_selected_timer_config == 0) {
+            if (ax08_instruction_state == AX08_INSTRUCTION_STEP_IDLE && i_selected_timer_config == 0) {
                 // Disable state timer interrupts.
                 T2CONbits.TMR2ON = false;
                 TMR2IE = false;
@@ -229,7 +239,7 @@ void ax08_seq_handle_disable(void) {
     // Reset state.
     LATB &= 0b00000100;
     ax08_seq_mode = AX08_SEQ_STATE_RUN_INSTRUCTION;
-    cycle_state = 0;
+    ax08_instruction_state = AX08_INSTRUCTION_STEP_IDLE;
 
     // Enable state timer & state timer interrupts.
     TMR2IE = true;

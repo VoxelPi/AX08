@@ -20,6 +20,17 @@ typedef enum ax08_seq_state {
     AX08_SEQ_STATE_IDLE = 4,            // The sequencer is waiting for further instructions.
 } ax08_seq_state_t;
 
+typedef enum ax08_instruction_step {
+    AX08_INSTRUCTION_STEP_IDLE = 0,
+    AX08_INSTRUCTION_STEP_FETCH = 1,
+    AX08_INSTRUCTION_STEP_EXECUTE = 2,
+    AX08_INSTRUCTION_STEP_PC_INCREMENT = 3,
+    AX08_INSTRUCTION_STEP_PC_STORE = 4,
+    AX08_INSTRUCTION_STEP_PC_PAUSE = 5,
+    AX08_INSTRUCTION_STEP_STORE = 6,
+    AX08_INSTRUCTION_STEP_RESET = 255,
+} ax08_instruction_step_t;
+
 extern uint8_t n_state_timer_configs;                              // Number of sw post scalers.
 extern uint16_t state_timer_sw_periods[N_MAX_STATE_TIMER_CONFIGS]; // Number of post scalers.
 extern uint8_t i_selected_timer_config;                            // The selected sw timer period.
@@ -27,7 +38,7 @@ extern volatile uint16_t state_timer_sw_value;                     // The value 
 
 extern bool ax08_seq_enabled;                          // If the computer is currently enabled.
 extern ax08_seq_state_t ax08_seq_mode;                 // The current sequencer state.
-extern uint8_t cycle_state;    // A number in [0, 5], representing the current cycle state.
+extern ax08_instruction_step_t ax08_instruction_state; // The current instruction step.
 
 /**
 * Initializes the hardware used by the state module.
