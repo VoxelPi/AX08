@@ -124,11 +124,12 @@ void __interrupt() ISR() {
 
     // Handle UART RX interrupts. (Bridge communication).
     if (RCIF) {
-        // Insert received data into buffer.
-        cmd_rx_buffer[i_cmd_rx_write++] = RCREG;
+        // Insert received data into rx buffer.
+        cmd_rx_buffer.data[cmd_rx_buffer.i_write] = RCREG;
+        cmd_rx_buffer.i_write += 1;
         #if BRIDGE_UART_BUFFER_SIZE < 256
-        if (i_cmd_rx_write >= BRIDGE_UART_BUFFER_SIZE) {
-            i_cmd_rx_write = 0;
+        if (cmd_rx_buffer.i_write >= BRIDGE_UART_BUFFER_SIZE) {
+            cmd_rx_buffer.i_write = 0;
         }
         #endif
         poll_command = true;

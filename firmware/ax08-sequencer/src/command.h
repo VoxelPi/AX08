@@ -8,10 +8,15 @@
 */
 #define BRIDGE_UART_BUFFER_SIZE 256 // The size of the receive buffer.
 
-extern volatile uint8_t cmd_rx_buffer[BRIDGE_UART_BUFFER_SIZE]; // The receive buffer.
-extern volatile uint8_t i_cmd_rx_write;                         // The location of the write pointer.
-extern volatile bool poll_command;                              // If there is a command event to be processed.
-extern volatile bool reset_command;                             // If the command state should be reset.
+typedef struct ring_buffer_8 {
+    volatile uint8_t i_read;
+    volatile uint8_t i_write;
+    volatile uint8_t *data;
+} ring_buffer_8_t;
+
+extern volatile ring_buffer_8_t cmd_rx_buffer; // The receive buffer.
+extern volatile bool poll_command;             // If there is a command event to be processed.
+extern volatile bool reset_command;            // If the command state should be reset.
 
 /**
     Initializes the hardware used by the command module.

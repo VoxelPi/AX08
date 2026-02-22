@@ -4,9 +4,13 @@
 
 #include "state.h"
 
-volatile uint8_t cmd_rx_buffer[BRIDGE_UART_BUFFER_SIZE];
-uint8_t i_cmd_rx_read = 0;
-volatile uint8_t i_cmd_rx_write = 0;
+volatile uint8_t cmd_rx_buffer_data[BRIDGE_UART_BUFFER_SIZE];
+volatile ring_buffer_8_t cmd_rx_buffer = {
+    .i_read = 0,
+    .i_write = 0,
+    .data = cmd_rx_buffer_data,
+};
+
 volatile bool poll_command = false;
 volatile bool reset_command = false;
 
@@ -55,18 +59,18 @@ void ax08_seq_command_init() {
 void ax08_seq_command_update(void) {
     // Handle reset events.
     if (reset_command) {
-        i_cmd_rx_read = i_cmd_rx_write;
+        cmd_rx_buffer.i_read = cmd_rx_buffer.i_write;
         command_rx_state = AX08_CMD_RX_STATE_ID;
         return;
     }
 
-    while (i_cmd_rx_read != i_cmd_rx_write) {
+    while (cmd_rx_buffer.i_read != cmd_rx_buffer.i_write) {
 
         switch (command_rx_state) {
         case AX08_CMD_RX_STATE_ID:
             // Received command id.
-            command_id = cmd_rx_buffer[i_cmd_rx_read];
-            ++i_cmd_rx_read;
+            command_id = cmd_rx_buffer.data[cmd_rx_buffer.i_read];
+            ++cmd_rx_buffer.i_read;
 
             if ((command_id & 0x80) == 0) {
                 // Handle command.
@@ -86,10 +90,10 @@ void ax08_seq_command_update(void) {
         case AX08_CMD_RX_STATE_LENGTH:
             // Receive payload length.
             command_rx_state = AX08_CMD_RX_STATE_PAYLOAD;
-            command_payload_length = cmd_rx_buffer[i_cmd_rx_read];
-            remaining_payload = cmd_rx_buffer[i_cmd_rx_read];
-            ++i_cmd_rx_read;
-            command_payload_start = i_cmd_rx_read;
+            command_payload_length = cmd_rx_buffer.data[cmd_rx_buffer.i_read];
+            remaining_payload = cmd_rx_buffer.data[cmd_rx_buffer.i_read];
+            ++cmd_rx_buffer.i_read;
+            command_payload_start = cmd_rx_buffer.i_read;
 
             // Handle commands with a payload size of 0.
             if (remaining_payload == 0) {
@@ -107,7 +111,7 @@ void ax08_seq_command_update(void) {
         case AX08_CMD_RX_STATE_PAYLOAD:
             // Receive payload element.
             --remaining_payload;
-            ++i_cmd_rx_read;
+            ++cmd_rx_buffer.i_read;
 
             // Check if command is fully received.
             if (remaining_payload == 0) {
@@ -149,7 +153,7 @@ void ax08_seq_command_handle(void) {
             // Missing clock index argument.
             break;
         }
-        ax08_seq_action_select_timer(cmd_rx_buffer[(uint8_t)(command_payload_start + 0)]);
+        ax08_seq_action_select_timer(cmd_rx_buffer.data[(uint8_t)(command_payload_start + 0)]);
         break;
 
     case AX08_COMMAND_UPLOAD_TIMER_CONFIG:
@@ -164,15 +168,14 @@ void ax08_seq_command_handle(void) {
         uint16_t new_sw_periods[N_MAX_STATE_TIMER_CONFIGS];
         i_arg += 2; // Skip first two arguments. (TODO: update timer configuration)
         for (uint8_t i_speed = 0; i_speed < n_state_timer_configs; ++i_speed) {
-            uint16_t sw_period = cmd_rx_buffer[i_arg];
+            uint16_t sw_period = cmd_rx_buffer.data[i_arg];
             i_arg += 1;
-            sw_period |= ((uint16_t)(cmd_rx_buffer[i_arg])) << 8;
+            sw_period |= ((uint16_t)(cmd_rx_buffer.data[i_arg])) << 8;
             i_arg += 1;
             new_sw_periods[i_speed] = sw_period;
         }
 
         // Update config
-        TXREG = 0xAA;
         ax08_seq_update_timer_config(new_n_configs, new_sw_periods);
         break;
 
