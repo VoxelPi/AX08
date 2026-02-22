@@ -138,6 +138,21 @@ void __interrupt() ISR() {
         return;
     }
 
+    // Handle UART TX interrupts. (Bridge communication).
+    if (TXIE && TXIF) {
+        // Transmit next element from tx buffer.
+        TXREG = cmd_tx_buffer.data[cmd_tx_buffer.i_read];
+        cmd_tx_buffer.i_read += 1;
+        #if BRIDGE_UART_BUFFER_SIZE < 256
+        if (cmd_tx_buffer.i_read >= BRIDGE_UART_BUFFER_SIZE) {
+            cmd_tx_buffer.i_read = 0;
+        }
+        #endif
+
+        // Update interrupt enabled setting, depending if there is still data to be send. (Datasheet 26.1.1.3)
+        TXIE = cmd_tx_buffer.i_read != cmd_tx_buffer.i_write;
+    }
+
     // Handle command reset timer interrupt. (Bridge communication).
     if (TMR6IE && TMR6IF) {
         reset_command = true;

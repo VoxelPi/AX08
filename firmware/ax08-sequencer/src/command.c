@@ -11,6 +11,13 @@ volatile ring_buffer_8_t cmd_rx_buffer = {
     .data = cmd_rx_buffer_data,
 };
 
+volatile uint8_t cmd_tx_buffer_data[BRIDGE_UART_BUFFER_SIZE];
+volatile ring_buffer_8_t cmd_tx_buffer = {
+    .i_read = 0,
+    .i_write = 0,
+    .data = cmd_tx_buffer_data,
+};
+
 volatile bool poll_command = false;
 volatile bool reset_command = false;
 
