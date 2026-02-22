@@ -46,6 +46,11 @@ extern ax08_instruction_step_t ax08_instruction_state; // The current instructio
 void ax08_seq_state_init(void);
 
 /**
+* Update the state timer configuration.
+*/
+void ax08_seq_update_timer_config(uint8_t n_configs, uint16_t *sw_periods);
+
+/**
     Performs a sequencer state update.
 */
 void ax08_seq_update_state(void);

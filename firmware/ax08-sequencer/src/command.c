@@ -119,6 +119,8 @@ void ax08_seq_command_update(void) {
 }
 
 void ax08_seq_command_handle(void) {
+    uint8_t new_n_configs;
+
     switch (command_id) {
     case AX08_COMMAND_TOOGLE_DEBUG_MODE:
         if (ax08_seq_enabled) {
@@ -142,6 +144,29 @@ void ax08_seq_command_handle(void) {
             break;
         }
         ax08_seq_action_select_timer(cmd_rx_buffer[(uint8_t)(command_payload_start + 0)]);
+        break;
+
+    case AX08_COMMAND_UPLOAD_TIMER_CONFIG:
+        // Load new number of clock speeds.
+        new_n_configs = command_payload_length - 2;
+        if (new_n_configs > N_MAX_STATE_TIMER_CONFIGS) {
+            new_n_configs = N_MAX_STATE_TIMER_CONFIGS;
+        }
+
+        // Load clock speeds.
+        uint8_t i_arg = command_payload_start;
+        uint16_t new_sw_periods[N_MAX_STATE_TIMER_CONFIGS];
+        i_arg += 2; // Skip first two arguments. (TODO: update timer configuration)
+        for (uint8_t i_speed = 0; i_speed < n_state_timer_configs; ++i_speed) {
+            uint16_t sw_period = cmd_rx_buffer[i_arg];
+            i_arg += 1;
+            sw_period |= ((uint16_t)(cmd_rx_buffer[i_arg])) << 8;
+            i_arg += 1;
+            new_sw_periods[i_speed] = sw_period;
+        }
+
+        // Update config
+        ax08_seq_update_timer_config(new_n_configs, new_sw_periods);
         break;
 
     default:

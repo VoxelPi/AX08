@@ -41,6 +41,22 @@ void ax08_seq_state_init() {
     T2CONbits.TMR2ON = true;         // Enable the timer.
 }
 
+
+void ax08_seq_update_timer_config(uint8_t n_configs, uint16_t *sw_periods) {
+    // Update timer configs.
+    n_state_timer_configs = n_configs;
+    eeprom_n_state_timer_configs = n_configs;
+    for (uint8_t i = 0; i < n_configs; ++i) {
+        state_timer_sw_periods[i] = sw_periods[i];
+        eeprom_state_timer_sw_periods[i] = sw_periods[i];
+    }
+
+    // Make sure selected timer config stays in bounds.
+    if (i_selected_timer_config >= n_state_timer_configs) {
+        i_selected_timer_config = 0;
+    }
+}
+
 void ax08_seq_run_instruction_turbo() {
     // Deactivate interrupts during the cycle so that the timings are perfect.
     // The method only takes ~55µs, so this does not affect other functions in a meaningful way.
