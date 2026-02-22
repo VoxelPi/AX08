@@ -6,9 +6,9 @@
 #include "state.h"
 
 volatile uint8_t cmd_rx_buffer[BRIDGE_UART_BUFFER_SIZE];
-uint8_t i_cmd_rx_read;
-volatile uint8_t i_cmd_rx_write;
-volatile bool poll_command;
+uint8_t i_cmd_rx_read = 0;
+volatile uint8_t i_cmd_rx_write = 0;
+volatile bool poll_command = false;
 
 typedef enum ax08_command_rx_state {
     AX08_CMD_RX_STATE_ID = 0,
@@ -25,7 +25,7 @@ uint8_t remaining_payload = 0;            // How much of the commands payload is
 #define AX08_COMMAND_RUN_INSTRUCTION 0x02
 #define AX08_COMMAND_RUN_STEP 0x03
 #define AX08_COMMAND_SELECT_TIMER 0x04
-#define AX08_COMMAND_UPLOAD_TIMER_CONFIG 0x40
+#define AX08_COMMAND_UPLOAD_TIMER_CONFIG 0x80
 
 void ax08_seq_command_handle(void);
 
@@ -44,9 +44,16 @@ void ax08_seq_command_update(void) {
         switch (command_rx_state) {
         case AX08_CMD_RX_STATE_ID:
             // Received command id.
-            command_rx_state = AX08_CMD_RX_STATE_LENGTH;
             command_id = cmd_rx_buffer[i_cmd_rx_read];
             ++i_cmd_rx_read;
+
+            if ((command_id & 0x80) == 0) {
+                // Handle command.
+                ax08_seq_command_handle();
+            } else {
+                // Command has arguments.
+                command_rx_state = AX08_CMD_RX_STATE_LENGTH;
+            }
             break;
 
         case AX08_CMD_RX_STATE_LENGTH:
@@ -57,8 +64,8 @@ void ax08_seq_command_update(void) {
             ++i_cmd_rx_read;
             command_payload_start = i_cmd_rx_read;
 
-            // Handle commands without payload.
-            if (command_payload_length == 0) {
+            // Handle commands with a payload size of 0.
+            if (remaining_payload == 0) {
                 // Handle command.
                 command_rx_state = AX08_CMD_RX_STATE_ID;
                 ax08_seq_command_handle();
