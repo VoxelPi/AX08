@@ -68,6 +68,13 @@ void ax08_seq_command_init() {
 void ax08_seq_command_update(void) {
     // Handle reset events.
     if (reset_command) {
+        reset_command = false;
+
+        // Disable reset timer.
+        TMR6ON = false;
+        TMR6IE = false;
+
+        // Reset command rx pipeline.
         cmd_rx_buffer.i_read = cmd_rx_buffer.i_write;
         command_rx_state = AX08_CMD_RX_STATE_ID;
         return;
@@ -180,7 +187,7 @@ void ax08_seq_command_handle(void) {
 
     case AX08_COMMAND_UPLOAD_TIMER_CONFIG:
         // Load new number of clock speeds.
-        new_n_configs = command_payload_length - 2;
+        new_n_configs = (command_payload_length - 2) / 2;
         if (new_n_configs > N_MAX_STATE_TIMER_CONFIGS) {
             new_n_configs = N_MAX_STATE_TIMER_CONFIGS;
         }

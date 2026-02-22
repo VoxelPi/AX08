@@ -82,6 +82,8 @@ int main() {
 
         // Handle command events.
         if (poll_command) {
+            poll_command = false;
+
             ax08_seq_command_update();
         }
 
