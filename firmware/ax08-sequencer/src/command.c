@@ -16,9 +16,9 @@ typedef enum ax08_command_rx_state {
     AX08_CMD_RX_STATE_PAYLOAD = 2,
 } ax08_command_rx_state_t;
 ax08_command_rx_state_t command_rx_state; // Command RX state.
-uint8_t command_id = 0;
-uint8_t command_payload_length = 0;
-uint8_t command_payload_start = 0;
+uint8_t command_id = 0;                   // The id of the current command.
+uint8_t command_payload_length = 0;       // The length of the payload of the current command.
+uint8_t command_payload_start = 0;        // The index of the start of the payload of the current command.
 uint8_t remaining_payload = 0;            // How much of the commands payload is remaining, only valid in the PAYLOAD RX state.
 
 #define AX08_COMMAND_TOOGLE_DEBUG_MODE 0x01
