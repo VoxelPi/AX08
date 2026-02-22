@@ -35,13 +35,15 @@ uint8_t remaining_payload = 0;            // How much of the commands payload is
 #define AX08_COMMAND_TOOGLE_DEBUG_MODE 0x01
 #define AX08_COMMAND_RUN_INSTRUCTION 0x02
 #define AX08_COMMAND_RUN_STEP 0x03
+#define AX08_COMMAND_QUERY_STATE 0x60
 #define AX08_COMMAND_SELECT_TIMER 0x70
 #define AX08_COMMAND_UPLOAD_TIMER_CONFIG 0x80
 
-#define AX08_RESPONSE_ERROR_UNKNOWN_COMMAND 0x80
-#define AX08_RESPONSE_ERROR_TIMEOUT 0x81
-#define AX08_RESPONSE_ERROR_INVALID_ARGS 0x82
 #define AX08_RESPONSE_ACKNOWLEDGE 0x01
+#define AX08_RESPONSE_ERROR_UNKNOWN_COMMAND 0x41
+#define AX08_RESPONSE_ERROR_TIMEOUT 0x42
+#define AX08_RESPONSE_ERROR_INVALID_ARGS 0x43
+#define AX08_RESPONSE_STATE 0x80
 
 void ax08_seq_command_handle(void);
 
@@ -158,6 +160,56 @@ void ax08_seq_command_handle(void) {
 
         // Send acknowledge response.
         AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ACKNOWLEDGE);
+        return;
+    }
+
+    // Handle query state command family.
+    if ((command_id & 0xF0) == AX08_COMMAND_QUERY_STATE) {
+        bool query_state       = (command_id & 0x1) != 0;
+        bool query_instruction = (command_id & 0x2) != 0;
+        bool query_config      = (command_id & 0x4) != 0;
+
+        // Disable tx interrupts whilst building response packet.
+        TXIE = 0;
+
+        // Write response id.
+        cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = AX08_RESPONSE_STATE | (command_id & 0x0F);
+
+        // Write payload length.
+        uint8_t length = 0;
+        if (query_state) {
+            length += 1;
+        }
+        if (query_instruction) {
+            length += 1;
+        }
+        if (query_config) {
+            length += 2 + 2 * n_state_timer_configs;
+        }
+        cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = length;
+
+        // Write payload.
+        if (query_state) {
+            uint8_t state = 0;
+            state |= ax08_seq_enabled & 0b1;
+            state |= (ax08_seq_mode & 0b111) << 1;
+            state |= (i_selected_timer_config & 0b1111) << 4;
+            cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = state;
+        }
+        if (query_instruction) {
+            cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = ax08_instruction_state & 0b111;
+        }
+        if (query_config) {
+            cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = T2CON;                 // Write timer config.
+            cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = STATE_TIMER_HW_PERIOD; // Write timer period.
+            for (uint8_t i = 0; i < n_state_timer_configs; ++i) {
+                cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = (state_timer_sw_periods[i] >> 0) & 0xFF;
+                cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = (state_timer_sw_periods[i] >> 8) & 0xFF;
+            }
+        }
+
+        // Enable transmit interrupts. This will start the transmission.
+        TXIE = 1;
         return;
     }
 
