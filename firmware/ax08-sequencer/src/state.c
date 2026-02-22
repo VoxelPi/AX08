@@ -39,6 +39,9 @@ void ax08_seq_state_init() {
     T2CONbits.T2OUTPS = 0b0000;      // Use a postscaler of 1:1
     T2CONbits.T2CKPS = 0b00;         // Use a prescaler of 1:1
     T2CONbits.TMR2ON = true;         // Enable the timer.
+
+    // Update enabled state
+    ax08_seq_enabled = RA0;
 }
 
 
