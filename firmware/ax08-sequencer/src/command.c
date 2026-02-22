@@ -30,6 +30,12 @@ uint8_t remaining_payload = 0;            // How much of the commands payload is
 void ax08_seq_command_handle(void);
 
 void ax08_seq_command_init() {
+    // Configure UART baud rate
+    BAUDCONbits.BRG16 = 1; // Enable 16bit baud rate mode.
+    TXSTAbits.BRGH = 1;    // Enable speed mode.
+    SPBRGH = 0;            // Configure a baud rate of
+    SPBRGL = 68;           // 115200 kHz
+
     // Configure UART
     PIE1bits.RCIE = true;   // Enable UART RX interrupts.
     RCSTAbits.SPEN = true;  // Enable serial port. (Configures RX and TX pins as serial port pins)
@@ -166,6 +172,7 @@ void ax08_seq_command_handle(void) {
         }
 
         // Update config
+        TXREG = 0xAA;
         ax08_seq_update_timer_config(new_n_configs, new_sw_periods);
         break;
 
