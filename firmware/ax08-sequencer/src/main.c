@@ -137,4 +137,14 @@ void __interrupt() ISR() {
 
         return;
     }
+
+    // Handle command reset timer interrupt. (Bridge communication).
+    if (TMR6IE && TMR6IF) {
+        reset_command = true;
+        poll_command = true;
+
+        // Clear interrupt flag and return.
+        TMR6IF = 0;
+        return;
+    }
 }

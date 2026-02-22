@@ -9,6 +9,7 @@ volatile uint8_t cmd_rx_buffer[BRIDGE_UART_BUFFER_SIZE];
 uint8_t i_cmd_rx_read = 0;
 volatile uint8_t i_cmd_rx_write = 0;
 volatile bool poll_command = false;
+volatile bool reset_command = false;
 
 typedef enum ax08_command_rx_state {
     AX08_CMD_RX_STATE_ID = 0,
@@ -36,9 +37,24 @@ void ax08_seq_command_init() {
     TXSTAbits.SYNC = false; // Asynchronous mode.
     RCSTAbits.CREN = true;  // Enable receive.
     TXSTAbits.TXEN = true;  // Enable transmit.
+
+    // Configure timer6 (command reset timer)
+    // This config results in a timer interrupt every ~32ms.
+    PR6 = 255;                  // Configure timer period to max.
+    PIE3bits.TMR6IE = true;     // Enable match interrupts.
+    T6CONbits.T6OUTPS = 0b1111; // Use a postscaler of 1:16
+    T6CONbits.T6CKPS = 0b11;    // Use a prescaler of 1:64
+    T6CONbits.TMR6ON = false;   // Keep the timer disabled, only enabled while a command is being received.
 }
 
 void ax08_seq_command_update(void) {
+    // Handle reset events.
+    if (reset_command) {
+        i_cmd_rx_read = i_cmd_rx_write;
+        command_rx_state = AX08_CMD_RX_STATE_ID;
+        return;
+    }
+
     while (i_cmd_rx_read != i_cmd_rx_write) {
 
         switch (command_rx_state) {
@@ -53,6 +69,12 @@ void ax08_seq_command_update(void) {
             } else {
                 // Command has arguments.
                 command_rx_state = AX08_CMD_RX_STATE_LENGTH;
+
+                // Reset and enable the command reset timer.
+                TMR6 = 0;
+                TMR6IF = false;
+                TMR6IE = true;
+                TMR6ON = true;
             }
             break;
 
@@ -66,6 +88,10 @@ void ax08_seq_command_update(void) {
 
             // Handle commands with a payload size of 0.
             if (remaining_payload == 0) {
+                // Disable reset timer.
+                TMR6ON = false;
+                TMR6IE = false;
+
                 // Handle command.
                 command_rx_state = AX08_CMD_RX_STATE_ID;
                 ax08_seq_command_handle();
@@ -80,6 +106,10 @@ void ax08_seq_command_update(void) {
 
             // Check if command is fully received.
             if (remaining_payload == 0) {
+                // Disable reset timer.
+                TMR6ON = false;
+                TMR6IE = false;
+
                 // Handle command.
                 command_rx_state = AX08_CMD_RX_STATE_ID;
                 ax08_seq_command_handle();
