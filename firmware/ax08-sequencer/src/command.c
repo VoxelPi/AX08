@@ -119,8 +119,6 @@ void ax08_seq_command_update(void) {
 }
 
 void ax08_seq_command_handle(void) {
-    // Disable interrupts.
-    di();
     switch (command_id) {
     case AX08_COMMAND_TOOGLE_DEBUG_MODE:
         if (ax08_seq_enabled) {
@@ -150,5 +148,4 @@ void ax08_seq_command_handle(void) {
         // Do nothing on invalid command, read next command.
         break;
     }
-    ei();
 }
