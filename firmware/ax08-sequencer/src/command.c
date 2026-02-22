@@ -35,7 +35,7 @@ uint8_t remaining_payload = 0;            // How much of the commands payload is
 #define AX08_COMMAND_TOOGLE_DEBUG_MODE 0x01
 #define AX08_COMMAND_RUN_INSTRUCTION 0x02
 #define AX08_COMMAND_RUN_STEP 0x03
-#define AX08_COMMAND_SELECT_TIMER 0x04
+#define AX08_COMMAND_SELECT_TIMER 0x70
 #define AX08_COMMAND_UPLOAD_TIMER_CONFIG 0x80
 
 #define AX08_RESPONSE_ACKNOWLEDGE 0x01
@@ -147,6 +147,16 @@ void ax08_seq_command_update(void) {
 void ax08_seq_command_handle(void) {
     uint8_t new_n_configs;
 
+    // Handle select timer command family.
+    if ((command_id & 0xF0) == AX08_COMMAND_SELECT_TIMER) {
+        uint8_t i_timer = command_id & 0x0F;
+        ax08_seq_action_select_timer(i_timer);
+
+        // Send acknowledge response.
+        AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ACKNOWLEDGE);
+        return;
+    }
+
     switch (command_id) {
     case AX08_COMMAND_TOOGLE_DEBUG_MODE:
         if (ax08_seq_enabled) {
@@ -169,17 +179,6 @@ void ax08_seq_command_handle(void) {
 
     case AX08_COMMAND_RUN_STEP:
         ax08_seq_action_run_step();
-
-        // Send acknowledge response.
-        AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ACKNOWLEDGE);
-        break;
-
-    case AX08_COMMAND_SELECT_TIMER:
-        if (command_payload_length < 1) {
-            // Missing clock index argument.
-            break;
-        }
-        ax08_seq_action_select_timer(cmd_rx_buffer.data[(uint8_t)(command_payload_start + 0)]);
 
         // Send acknowledge response.
         AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ACKNOWLEDGE);
