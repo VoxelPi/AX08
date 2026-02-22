@@ -38,6 +38,9 @@ uint8_t remaining_payload = 0;            // How much of the commands payload is
 #define AX08_COMMAND_SELECT_TIMER 0x70
 #define AX08_COMMAND_UPLOAD_TIMER_CONFIG 0x80
 
+#define AX08_RESPONSE_ERROR_UNKNOWN_COMMAND 0x80
+#define AX08_RESPONSE_ERROR_TIMEOUT 0x81
+#define AX08_RESPONSE_ERROR_INVALID_ARGS 0x82
 #define AX08_RESPONSE_ACKNOWLEDGE 0x01
 
 void ax08_seq_command_handle(void);
@@ -77,6 +80,7 @@ void ax08_seq_command_update(void) {
         // Reset command rx pipeline.
         cmd_rx_buffer.i_read = cmd_rx_buffer.i_write;
         command_rx_state = AX08_CMD_RX_STATE_ID;
+        AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ERROR_TIMEOUT);
         return;
     }
 
@@ -185,6 +189,12 @@ void ax08_seq_command_handle(void) {
         break;
 
     case AX08_COMMAND_UPLOAD_TIMER_CONFIG:
+        if ((command_payload_length < 4) || ((command_payload_length & 1) != 0)) {
+            // Missing or incomplete arguments.
+            AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ERROR_INVALID_ARGS);
+            break;
+        }
+
         // Load new number of clock speeds.
         new_n_configs = (command_payload_length - 2) / 2;
         if (new_n_configs > N_MAX_STATE_TIMER_CONFIGS) {
@@ -211,7 +221,8 @@ void ax08_seq_command_handle(void) {
         break;
 
     default:
-        // Do nothing on invalid command, read next command.
+        // Do nothing on invalid command and send error response.
+        AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ERROR_UNKNOWN_COMMAND);
         break;
     }
 }
