@@ -38,6 +38,8 @@ uint8_t remaining_payload = 0;            // How much of the commands payload is
 #define AX08_COMMAND_SELECT_TIMER 0x04
 #define AX08_COMMAND_UPLOAD_TIMER_CONFIG 0x80
 
+#define AX08_RESPONSE_ACKNOWLEDGE 0x01
+
 void ax08_seq_command_handle(void);
 
 void ax08_seq_command_init() {
@@ -145,14 +147,24 @@ void ax08_seq_command_handle(void) {
         } else {
             ax08_seq_action_reset();
         }
+
+        // Send acknowledge response.
+        AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ACKNOWLEDGE);
+
         break;
 
     case AX08_COMMAND_RUN_INSTRUCTION:
         ax08_seq_action_run_instruction();
+
+        // Send acknowledge response.
+        AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ACKNOWLEDGE);
         break;
 
     case AX08_COMMAND_RUN_STEP:
         ax08_seq_action_run_step();
+
+        // Send acknowledge response.
+        AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ACKNOWLEDGE);
         break;
 
     case AX08_COMMAND_SELECT_TIMER:
@@ -161,6 +173,9 @@ void ax08_seq_command_handle(void) {
             break;
         }
         ax08_seq_action_select_timer(cmd_rx_buffer.data[(uint8_t)(command_payload_start + 0)]);
+
+        // Send acknowledge response.
+        AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ACKNOWLEDGE);
         break;
 
     case AX08_COMMAND_UPLOAD_TIMER_CONFIG:
@@ -184,6 +199,9 @@ void ax08_seq_command_handle(void) {
 
         // Update config
         ax08_seq_update_timer_config(new_n_configs, new_sw_periods);
+
+        // Send acknowledge response.
+        AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ACKNOWLEDGE);
         break;
 
     default:
