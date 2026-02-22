@@ -90,8 +90,6 @@ int main() {
             ax08_seq_run_instruction_turbo();
         } else if (state_timer_sw_value >= state_timer_sw_periods[i_selected_timer_config]) {
             state_timer_sw_value = 0;
-
-            // Update the sequencer state.
             ax08_seq_update_state();
         }
     }

@@ -21,14 +21,14 @@ typedef enum ax08_seq_state {
 } ax08_seq_state_t;
 
 typedef enum ax08_instruction_step {
-    AX08_INSTRUCTION_STEP_IDLE = 0,
-    AX08_INSTRUCTION_STEP_FETCH = 1,
-    AX08_INSTRUCTION_STEP_EXECUTE = 2,
-    AX08_INSTRUCTION_STEP_PC_INCREMENT = 3,
-    AX08_INSTRUCTION_STEP_PC_STORE = 4,
-    AX08_INSTRUCTION_STEP_PC_PAUSE = 5,
-    AX08_INSTRUCTION_STEP_STORE = 6,
-    AX08_INSTRUCTION_STEP_RESET = 255,
+    AX08_INSTRUCTION_STEP_IDLE = 0,         // No instruction is currently active.
+    AX08_INSTRUCTION_STEP_FETCH = 1,        // The instruction word is being fetched.
+    AX08_INSTRUCTION_STEP_EXECUTE = 2,      // The instruction is executed.
+    AX08_INSTRUCTION_STEP_PC_INCREMENT = 3, // The program counter is incremented.
+    AX08_INSTRUCTION_STEP_PC_STORE = 4,     // The program counter is stored.
+    AX08_INSTRUCTION_STEP_PC_PAUSE = 5,     // A pause between the program counter and result stores.
+    AX08_INSTRUCTION_STEP_STORE = 6,        // The instruction result is stored.
+    AX08_INSTRUCTION_STEP_RESET = 7,        // A reset instruction is executed.
 } ax08_instruction_step_t;
 
 extern uint8_t n_state_timer_configs;                              // Number of sw post scalers.
