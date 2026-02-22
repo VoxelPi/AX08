@@ -1,6 +1,5 @@
 #include "command.h"
 
-#include <pic.h>
 #include <xc.h>
 
 #include "state.h"
@@ -123,36 +122,33 @@ void ax08_seq_command_handle(void) {
     // Disable interrupts.
     di();
     switch (command_id) {
-        case AX08_COMMAND_TOOGLE_DEBUG_MODE:
-            if (ax08_seq_enabled) {
-                ax08_seq_action_toggle_debug_mode();
-            } else {
-                ax08_seq_action_reset();
-            }
-            break;
+    case AX08_COMMAND_TOOGLE_DEBUG_MODE:
+        if (ax08_seq_enabled) {
+            ax08_seq_action_toggle_debug_mode();
+        } else {
+            ax08_seq_action_reset();
+        }
+        break;
 
-        case AX08_COMMAND_RUN_INSTRUCTION:
-            ax08_seq_action_run_instruction();
-            break;
+    case AX08_COMMAND_RUN_INSTRUCTION:
+        ax08_seq_action_run_instruction();
+        break;
 
-        case AX08_COMMAND_RUN_STEP:
-            ax08_seq_action_run_step();
-            break;
+    case AX08_COMMAND_RUN_STEP:
+        ax08_seq_action_run_step();
+        break;
 
-        case AX08_COMMAND_SELECT_TIMER:
-            if (command_payload_length < 1) {
-                // Missing clock index argument.
-                break;
-            }
-            ax08_seq_action_select_timer(cmd_rx_buffer[(uint8_t)(command_payload_start + 0)]);
+    case AX08_COMMAND_SELECT_TIMER:
+        if (command_payload_length < 1) {
+            // Missing clock index argument.
             break;
+        }
+        ax08_seq_action_select_timer(cmd_rx_buffer[(uint8_t)(command_payload_start + 0)]);
+        break;
 
-        case AX08_COMMAND_UPLOAD_TIMER_CONFIG:
-            break;
-
-        default:
-            // Do nothing on invalid command, read next command.
-            break;
+    default:
+        // Do nothing on invalid command, read next command.
+        break;
     }
     ei();
 }

@@ -107,9 +107,8 @@ void __interrupt() ISR() {
         // Increment software timer.
         ++state_timer_sw_value;
 
-        // Clear interrupt flag.
+        // Clear interrupt flag and return.
         TMR2IF = 0;
-
         return;
     }
 
@@ -118,9 +117,8 @@ void __interrupt() ISR() {
         // Mark new input to be polled.
         poll_input = true;
 
-        // Clear interrupt flag.
+        // Clear interrupt flag and return.
         TMR4IF = 0;
-
         return;
     }
 
@@ -135,6 +133,7 @@ void __interrupt() ISR() {
         #endif
         poll_command = true;
 
+        // Interrupt flag is automatically cleared by the read (if no more data is available), so just return.
         return;
     }
 
