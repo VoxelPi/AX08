@@ -23,6 +23,7 @@
 
 #include <xc.h>
 
+#include "config.h"
 #include "state.h"
 #include "command.h"
 #include "input.h"
@@ -61,7 +62,9 @@ int main() {
     // Initialize hardware modules.
     ax08_seq_state_init();
     ax08_seq_input_init();
+    #ifdef FEATURE_UART_COMMANDS
     ax08_seq_command_init();
+    #endif
 
     // Enable interrupts.
     INTCONbits.PEIE = true;  // Enable peripheral interrupts.
@@ -80,12 +83,14 @@ int main() {
             ax08_seq_handle_input(input_state);
         }
 
+        #ifdef FEATURE_UART_COMMANDS
         // Handle command events.
         if (poll_command) {
             poll_command = false;
 
             ax08_seq_command_update();
         }
+        #endif
 
         // Handle state events.
         if (ax08_seq_mode == AX08_SEQ_STATE_RUN_TURBO) {
@@ -124,6 +129,7 @@ void __interrupt() ISR() {
         return;
     }
 
+    #ifdef FEATURE_UART_COMMANDS
     // Handle UART RX interrupts. (Bridge communication).
     if (RCIF) {
         // Insert received data into rx buffer.
@@ -164,4 +170,5 @@ void __interrupt() ISR() {
         TMR6IF = 0;
         return;
     }
+    #endif
 }

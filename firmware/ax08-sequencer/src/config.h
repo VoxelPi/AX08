@@ -33,9 +33,17 @@
 #define PIN_BREAK RA7
 #define PIN_ENABLE RA0
 
-/**
-    Optional bug fixes.
- */
+
+
+#pragma region feature toggles
+
+// Enable the uart command system.
+#define FEATURE_UART_COMMANDS
+
+
+
+#pragma region bugfixes
+
 // Fix https://github.com/VoxelPi/AX08/issues/2
 // Only relevant on the AX08L boards.
 #define BUGFIX_SKIP_BREAK_STORE
