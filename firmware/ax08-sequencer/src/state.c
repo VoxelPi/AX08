@@ -27,7 +27,7 @@ bool previous_break_state = false; // Previous state of the break pin.
 bool state_changed = true; // If a new state is available to be processed by the main loop.
 
 void ax08_seq_state_init() {
-    // Load the ininitial configuration from the EEPROM.
+    // Load the initial configuration from the EEPROM.
     n_state_timer_configs = eeprom_n_state_timer_configs;
     for (int i = 0; i < n_state_timer_configs; ++i) {
         state_timer_sw_periods[i] = eeprom_state_timer_sw_periods[i];
@@ -139,7 +139,7 @@ void ax08_seq_run_step() {
 
             // Handle break opcode.
             if (!PIN_BREAK) {
-                // Switch to run instruction state so that the current instruction is full executed
+                // Switch to run instruction state so that the current instruction is fully executed
                 // before entering the idle state.
                 ax08_seq_mode = AX08_SEQ_STATE_RUN_INSTRUCTION;
             }
@@ -207,7 +207,7 @@ void ax08_seq_update_state() {
             break;
 
         case AX08_SEQ_STATE_RUN_STEP:
-            // Run a sigle step and change state to idle.
+            // Run a single step and change state to idle.
             ax08_seq_run_step();
             ax08_seq_mode = AX08_SEQ_STATE_IDLE;
             break;

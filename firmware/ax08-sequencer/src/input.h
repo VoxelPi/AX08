@@ -21,14 +21,14 @@ void ax08_seq_input_init(void);
 
 /**
     Pushes the current input state into the buffer,
-    and generates the new stabalized input state from the buffer entries.
+    and generates the new stabilized input state from the buffer entries.
 
-    @return The current stabalized input state.
+    @return The current stabilized input state.
 */
 uint8_t ax08_seq_poll_input(void);
 
 /**
-    Update the statemachine using the nw input state.
+    Update the statemachine using the new input state.
 
     @param input_state The new input state.
 */
