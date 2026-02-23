@@ -61,10 +61,6 @@ void ax08_seq_update_timer_config(uint8_t n_configs, uint16_t *sw_periods) {
 }
 
 void ax08_seq_run_instruction_turbo() {
-    // Deactivate interrupts during the cycle so that the timings are perfect.
-    // The method only takes ~55µs, so this does not affect other functions in a meaningful way.
-    GIE = false;
-
     // FREEZE INSTRUCTION
     PIN_STORE_OUTPUT = false;
     PIN_FREEZE_WORD = true;
@@ -114,9 +110,6 @@ void ax08_seq_run_instruction_turbo() {
 
     // RESET
     PIN_STORE_OUTPUT = false;
-
-    // Re-activate interrupts.
-    GIE = true;
 }
 
 void ax08_seq_run_step() {
