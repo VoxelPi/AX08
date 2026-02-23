@@ -256,8 +256,8 @@ void ax08_seq_command_handle(void) {
         // Load clock speeds.
         uint8_t i_arg = command_payload_start;
         uint16_t new_sw_periods[N_MAX_STATE_TIMER_CONFIGS];
-        i_arg += 2; // Skip first two arguments. (TODO: update timer configuration)
-        for (uint8_t i_speed = 0; i_speed < n_state_timer_configs; ++i_speed) {
+        i_arg += 2; // Skip first two arguments.
+        for (uint8_t i_speed = 0; i_speed < new_n_configs; ++i_speed) {
             uint16_t sw_period = cmd_rx_buffer.data[i_arg];
             i_arg += 1;
             sw_period |= ((uint16_t)(cmd_rx_buffer.data[i_arg])) << 8;
