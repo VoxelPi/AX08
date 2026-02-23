@@ -23,9 +23,6 @@ ax08_seq_state_t ax08_seq_mode = AX08_SEQ_STATE_IDLE;
 ax08_instruction_step_t ax08_instruction_state = AX08_INSTRUCTION_STEP_IDLE;
 bool reset_scheduled = true; // Schedule a reset during sequencer initialization.
 
-bool previous_break_state = false; // Previous state of the break pin.
-bool state_changed = true; // If a new state is available to be processed by the main loop.
-
 void ax08_seq_state_init() {
     // Load the initial configuration from the EEPROM.
     n_state_timer_configs = eeprom_n_state_timer_configs;
