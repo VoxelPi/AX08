@@ -2,6 +2,9 @@
 
 #define _XTAL_FREQ 32000000
 
+#define AX08_SEQ_PROTOCOL_VERSION 1
+#define AX08_SEQ_FW_VERSION "0.1.0"
+
 /*
     PIN MAPPING:
 

@@ -2,7 +2,11 @@
 
 #include <xc.h>
 
+#include "config.h"
 #include "state.h"
+
+static const char seq_version[] = AX08_SEQ_FW_VERSION;
+static const char seq_git_commit[] = AX08_SEQ_FW_GIT_COMMIT;
 
 volatile uint8_t cmd_rx_buffer_data[BRIDGE_UART_BUFFER_SIZE];
 volatile ring_buffer_8_t cmd_rx_buffer = {
@@ -168,6 +172,7 @@ void ax08_seq_command_handle(void) {
         bool query_state       = (command_id & 0x1) != 0;
         bool query_instruction = (command_id & 0x2) != 0;
         bool query_config      = (command_id & 0x4) != 0;
+        bool query_version     = (command_id & 0x8) != 0;
 
         // Disable tx interrupts whilst building response packet.
         TXIE = 0;
@@ -185,6 +190,9 @@ void ax08_seq_command_handle(void) {
         }
         if (query_config) {
             length += 2 + 2 * n_state_timer_configs;
+        }
+        if (query_version) {
+            length += 1 + 1 + sizeof(seq_version) - 1 + 1 + sizeof(seq_git_commit) - 1;
         }
         cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = length;
 
@@ -206,6 +214,22 @@ void ax08_seq_command_handle(void) {
             for (uint8_t i = 0; i < n_state_timer_configs; ++i) {
                 cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = (state_timer_sw_periods[i] >> 0) & 0xFF;
                 cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = (state_timer_sw_periods[i] >> 8) & 0xFF;
+            }
+        }
+        if (query_version) {
+            // Send the protocol version.
+            cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = AX08_SEQ_PROTOCOL_VERSION;
+
+            // Send the version.
+            cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = sizeof(seq_version) - 1;
+            for (const char *p = seq_version; *p; ++p) {
+                cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = *p;
+            }
+
+            // Send the git commit.
+            cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = sizeof(seq_git_commit) - 1;
+            for (const char *p = seq_git_commit; *p; ++p) {
+                cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = *p;
             }
         }
 
