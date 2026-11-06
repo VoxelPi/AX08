@@ -214,7 +214,7 @@ void ax08_seq_command_handle(void) {
         }
         if (query_config) {
             cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = T2CON;                 // Write timer config.
-            cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = STATE_TIMER_HW_PERIOD; // Write timer period.
+            cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = PR2;                   // Write timer period.
             cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = n_state_timer_configs; // Write the number of configured timers.
             for (uint8_t i = 0; i < n_state_timer_configs; ++i) {
                 cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = (state_timer_sw_periods[i] >> 0) & 0xFF;
