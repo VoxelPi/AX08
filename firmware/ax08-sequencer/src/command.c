@@ -192,7 +192,12 @@ void ax08_seq_command_handle(void) {
             length += 2 + 2 * n_state_timer_configs;
         }
         if (query_version) {
-            length += 1 + 1 + sizeof(seq_version) - 1 + 1 + sizeof(seq_git_commit) - 1;
+            // 1 byte for the protocol version
+            // 1 byte for the version string length (excluding 0 terminator)
+            // n-1 bytes for the version string (excluding 0 terminator)
+            // 1 byte for the commit string length (excluding 0 terminator)
+            // n-1 bytes for the commit string (excluding 0 terminator)
+            length += 1 + sizeof(seq_version) + sizeof(seq_git_commit);
         }
         cmd_tx_buffer.data[cmd_tx_buffer.i_write++] = length;
 
