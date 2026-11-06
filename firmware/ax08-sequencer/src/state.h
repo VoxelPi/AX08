@@ -48,7 +48,7 @@ void ax08_seq_state_init(void);
 /**
 * Update the state timer configuration.
 */
-void ax08_seq_update_timer_config(uint8_t n_configs, uint16_t *sw_periods);
+void ax08_seq_update_timer_config(uint8_t hw_config, uint8_t hw_period, uint8_t n_configs, uint16_t *sw_periods);
 
 /**
     Performs a sequencer state update.

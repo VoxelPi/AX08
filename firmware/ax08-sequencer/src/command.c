@@ -247,16 +247,24 @@ void ax08_seq_command_handle(void) {
             break;
         }
 
+        uint8_t i_arg = command_payload_start;
+
         // Load new number of clock speeds.
         new_n_configs = (command_payload_length - 2) / 2;
         if (new_n_configs > N_MAX_STATE_TIMER_CONFIGS) {
             new_n_configs = N_MAX_STATE_TIMER_CONFIGS;
         }
 
+        // Read hardware timer config.
+        uint8_t new_hw_config = cmd_rx_buffer_data[i_arg];
+        i_arg += 1;
+
+        // Read hardware timer period.
+        uint8_t new_hw_period = cmd_rx_buffer_data[i_arg];
+        i_arg += 1;
+
         // Load clock speeds.
-        uint8_t i_arg = command_payload_start;
         uint16_t new_sw_periods[N_MAX_STATE_TIMER_CONFIGS];
-        i_arg += 2; // Skip first two arguments.
         for (uint8_t i_speed = 0; i_speed < new_n_configs; ++i_speed) {
             uint16_t sw_period = cmd_rx_buffer.data[i_arg];
             i_arg += 1;
@@ -266,7 +274,7 @@ void ax08_seq_command_handle(void) {
         }
 
         // Update config
-        ax08_seq_update_timer_config(new_n_configs, new_sw_periods);
+        ax08_seq_update_timer_config(new_hw_config, new_hw_period, new_n_configs, new_sw_periods);
 
         // Send acknowledge response.
         AX08_SEQ_SEND_BYTE(AX08_RESPONSE_ACKNOWLEDGE);

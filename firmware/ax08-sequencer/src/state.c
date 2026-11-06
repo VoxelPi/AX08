@@ -4,6 +4,8 @@
 
 #include "config.h"
 
+__eeprom uint8_t eeprom_state_timer_hw_config = 0b00000000; // Use a postscaler of 1:1 & prescaler of 1:1.
+__eeprom uint8_t eeprom_state_timer_hw_period = 126;        // True period is +1
 __eeprom uint8_t eeprom_n_state_timer_configs = 5;
 __eeprom uint16_t eeprom_state_timer_sw_periods[N_MAX_STATE_TIMER_CONFIGS] = {
     9,
@@ -31,18 +33,26 @@ void ax08_seq_state_init() {
     }
 
     // Configure timer2 (state timer)
-    PIE1bits.TMR2IE = true;          // Enable match interrupts.
-    PR2 = STATE_TIMER_HW_PERIOD - 1; // Configure timer period.
-    T2CONbits.T2OUTPS = 0b0000;      // Use a postscaler of 1:1
-    T2CONbits.T2CKPS = 0b00;         // Use a prescaler of 1:1
-    T2CONbits.TMR2ON = true;         // Enable the timer.
+    PIE1bits.TMR2IE = true;               // Enable match interrupts.
+    PR2 = eeprom_state_timer_hw_period;   // Configure timer period.
+    T2CON = eeprom_state_timer_hw_config; // Configure timer pre & post scaler.
+    T2CONbits.TMR2ON = true;              // Enable the timer.
 
     // Update enabled state
     ax08_seq_enabled = RA0;
 }
 
 
-void ax08_seq_update_timer_config(uint8_t n_configs, uint16_t *sw_periods) {
+void ax08_seq_update_timer_config(uint8_t hw_config, uint8_t hw_period, uint8_t n_configs, uint16_t *sw_periods) {
+    // Update the hw timer config. This also disables the timer.
+    bool timer_active = T2CONbits.TMR2ON;
+    T2CON = hw_config & 0b01111011;
+    eeprom_state_timer_hw_config = T2CON;
+
+    // Update the hw timer period.
+    PR2 = hw_period;
+    eeprom_state_timer_hw_period = PR2;
+
     // Update timer configs.
     n_state_timer_configs = n_configs;
     eeprom_n_state_timer_configs = n_configs;
@@ -55,6 +65,9 @@ void ax08_seq_update_timer_config(uint8_t n_configs, uint16_t *sw_periods) {
     if (i_selected_timer_config >= n_state_timer_configs) {
         i_selected_timer_config = 0;
     }
+
+    // Reactivate the timer it was previously active.
+    T2CONbits.TMR2ON = timer_active;
 }
 
 void ax08_seq_run_instruction_turbo() {
