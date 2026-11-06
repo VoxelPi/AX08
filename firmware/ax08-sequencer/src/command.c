@@ -189,7 +189,7 @@ void ax08_seq_command_handle(void) {
             length += 1;
         }
         if (query_config) {
-            length += 2 + 2 * n_state_timer_configs;
+            length += 3 + 2 * n_state_timer_configs;
         }
         if (query_version) {
             // 1 byte for the protocol version
