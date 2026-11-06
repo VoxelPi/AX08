@@ -2,6 +2,7 @@ out/
 _build/
 .generated/
 *.mplab-local.json
+*.backup
 
 # Prerequisites
 *.d

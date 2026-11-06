@@ -1,25 +1,5 @@
 {
-    "version": "1.8",
-    "configurations": [
-        {
-            "name": "default",
-            "id": "",
-            "device": "PIC16F1847",
-            "imageType": "application",
-            "imagePath": "./out/ax08-sequencer/default.elf",
-            "toolProperties": "default-tool-base",
-            "tool": "PICkit 5",
-            "packs": [
-                {
-                    "name": "PIC12-16F1xxx_DFP",
-                    "vendor": "Microchip",
-                    "version": "1.8.254"
-                }
-            ],
-            "fileSet": "default",
-            "toolchain": "default-XC8"
-        }
-    ],
+    "version": "1.9",
     "propertyGroups": [
         {
             "name": "default-XC8",
@@ -48,6 +28,27 @@
                     "exclude": "**/(_build|out|cmake|.vscode)/**/*"
                 }
             ]
+        }
+    ],
+    "configurations": [
+        {
+            "name": "default",
+            "id": "",
+            "device": "PIC16F1847",
+            "imageType": "application",
+            "imagePath": "./out/ax08-sequencer/default.elf",
+            "toolProperties": "default-tool-base",
+            "tool": "PICkit 5",
+            "packs": [
+                {
+                    "name": "PIC12-16F1xxx_DFP",
+                    "vendor": "Microchip",
+                    "version": "1.8.254"
+                }
+            ],
+            "fileSet": "default",
+            "toolchain": "default-XC8",
+            "includeLegacyMacros": true
         }
     ]
 }
